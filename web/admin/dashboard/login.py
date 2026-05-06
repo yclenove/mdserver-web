@@ -192,10 +192,10 @@ def do_login():
     login_cache_count = 5
     login_cache_limit = cache.get("login_cache_limit")
 
-    import web.config
+    import config
 
     # 开发模式下跳过验证码检查
-    if not web.config.DISABLE_CAPTCHA:
+    if not config.DISABLE_CAPTCHA:
         if "code" in session:
             if session["code"] != mw.md5(code):
                 if login_cache_limit is None:
