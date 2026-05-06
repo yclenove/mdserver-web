@@ -8,14 +8,10 @@
 # Author: midoks <midoks@163.com>
 # ---------------------------------------------------------------------------------
 
-from flask import request
-
-
-import core.mw as mw
 import thisdb
+
 
 # 初始化用户信息
 def init_admin_user():
     thisdb.initAdminUser()
     return True
-

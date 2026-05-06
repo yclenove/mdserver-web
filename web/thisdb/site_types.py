@@ -8,21 +8,23 @@
 # Author: midoks <midoks@163.com>
 # ---------------------------------------------------------------------------------
 
-__FIELD = 'id,name'
+__FIELD = "id,name"
 
-import core.mw as mw
+import core.mw as mw  # noqa: E402
+
 
 def addSiteTypes(name):
-    return mw.M('site_types').add("name", (name,))
+    return mw.M("site_types").add("name", (name,))
+
 
 def getSiteTypesCount():
-    return mw.M('site_types').count()
+    return mw.M("site_types").count()
+
 
 def getSiteTypesCountByName(name):
-    return mw.M('site_types').where('name=?', (name,)).count()
+    return mw.M("site_types").where("name=?", (name,)).count()
+
 
 def getSiteTypesList():
     # .debug(True)
-    return mw.M('site_types').field(__FIELD).order("id asc").select()
-
-
+    return mw.M("site_types").field(__FIELD).order("id asc").select()

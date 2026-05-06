@@ -13,8 +13,9 @@ import re
 from logging import handlers
 
 
-class EnhancedRotatingFileHandler(handlers.TimedRotatingFileHandler,
-                                  handlers.RotatingFileHandler):
+class EnhancedRotatingFileHandler(
+    handlers.TimedRotatingFileHandler, handlers.RotatingFileHandler
+):
     """
     Handler for logging to a set of files, which switches from one file
     to the next when the current file reaches a certain size, or at certain
@@ -33,25 +34,40 @@ class EnhancedRotatingFileHandler(handlers.TimedRotatingFileHandler,
             # W{0-6} - roll over on a certain day; 0 - Monday
     Here we are defaulting rotation with minutes interval
     """
-    def __init__(self, filename, max_bytes=1, interval=60, backup_count=0,
-                 encoding=None, when='M'):
-        max_bytes = max_bytes * 1024 * 1024
-        handlers.TimedRotatingFileHandler.__init__(self, filename=filename,
-                                                   when=when,
-                                                   interval=interval,
-                                                   backupCount=backup_count,
-                                                   encoding=encoding)
 
-        handlers.RotatingFileHandler.__init__(self, filename=filename,
-                                              mode='a',
-                                              maxBytes=max_bytes,
-                                              backupCount=backup_count,
-                                              encoding=encoding)
+    def __init__(
+        self,
+        filename,
+        max_bytes=1,
+        interval=60,
+        backup_count=0,
+        encoding=None,
+        when="M",
+    ):
+        max_bytes = max_bytes * 1024 * 1024
+        handlers.TimedRotatingFileHandler.__init__(
+            self,
+            filename=filename,
+            when=when,
+            interval=interval,
+            backupCount=backup_count,
+            encoding=encoding,
+        )
+
+        handlers.RotatingFileHandler.__init__(
+            self,
+            filename=filename,
+            mode="a",
+            maxBytes=max_bytes,
+            backupCount=backup_count,
+            encoding=encoding,
+        )
 
     # Time & Size combined rollover
     def shouldRollover(self, record):
-        return handlers.TimedRotatingFileHandler.shouldRollover(self, record) \
-            or handlers.RotatingFileHandler.shouldRollover(self, record)
+        return handlers.TimedRotatingFileHandler.shouldRollover(
+            self, record
+        ) or handlers.RotatingFileHandler.shouldRollover(self, record)
 
     # Roll overs current file
     def doRollover(self):

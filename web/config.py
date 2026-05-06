@@ -12,15 +12,17 @@
 # 配置信息
 # ---------------------------------------------------------------------------------
 
-import builtins
 import logging
 import os
-import sys
 
 import core.mw as mw
 
-from branding import APP_NAME, APP_ICON, APP_COPYRIGHT, APP_LOG_NAME, APP_SQLITE_NAME
-from version import APP_VERSION, APP_RELEASE, APP_REVISION, APP_SUFFIX
+from branding import APP_LOG_NAME, APP_SQLITE_NAME
+
+# 开发模式配置
+MW_ENV = os.environ.get("MW_ENV", "production")
+DEV_MODE = MW_ENV == "development"
+DISABLE_CAPTCHA = DEV_MODE  # 开发模式下禁用验证码
 
 DEBUG = False
 
@@ -55,10 +57,10 @@ PROXY_X_PREFIX_COUNT = 0
 DATA_DIR = mw.getPanelDataDir()
 
 # 日志文件名。这将进入数据目录，服务器模式下的非Windows平台除外。
-LOG_FILE = os.path.join(mw.getMWLogs(), APP_LOG_NAME + '.log')
+LOG_FILE = os.path.join(mw.getMWLogs(), APP_LOG_NAME + ".log")
 
-CONSOLE_LOG_FORMAT = '%(asctime)s: %(levelname)s\t%(name)s:\t%(message)s'
-FILE_LOG_FORMAT = '%(asctime)s: %(levelname)s\t%(name)s:\t%(message)s'
+CONSOLE_LOG_FORMAT = "%(asctime)s: %(levelname)s\t%(name)s:\t%(message)s"
+FILE_LOG_FORMAT = "%(asctime)s: %(levelname)s\t%(name)s:\t%(message)s"
 
 # 日志旋转设置日志文件将根据LOG_ROTATION_SIZE和LOG_ROTATION_AGE的值进行切换。
 # 旋转的文件将以格式命名Y-m-d_H-M-S
@@ -68,9 +70,8 @@ LOG_ROTATION_MAX_LOG_FILES = 5  # 要保留的最大备份数
 
 # 用于存储用户帐户和设置的SQLite数据库的默认路径。
 # 此默认设置将文件放置在与此相同的目录中 配置文件，但会生成一个在整个应用程序中使用的绝对路径。
-SQLITE_PATH = os.path.join(DATA_DIR, APP_SQLITE_NAME + '.db')
+SQLITE_PATH = os.path.join(DATA_DIR, APP_SQLITE_NAME + ".db")
 
 
-DEFAULT_SERVER = '0.0.0.0'
+DEFAULT_SERVER = "0.0.0.0"
 DEFAULT_SERVER_PORT = 7201
-

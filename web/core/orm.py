@@ -1,67 +1,58 @@
 # coding: utf-8
 
-import re
 import os
-import sys
 
 import pymysql.cursors
 
 
 class ORM:
     __DB_PASS = None
-    __DB_USER = 'root'
+    __DB_USER = "root"
     __DB_PORT = 3306
-    __DB_NAME = ''
-    __DB_HOST = 'localhost'
+    __DB_NAME = ""
+    __DB_HOST = "localhost"
     __DB_CONN = None
     __DB_CUR = None
     __DB_ERR = None
-    __DB_CNF = '/etc/my.cnf'
-    __DB_TIMEOUT=1
-    __DB_SOCKET = '/www/server/mysql/mysql.sock'
+    __DB_CNF = "/etc/my.cnf"
+    __DB_TIMEOUT = 1
+    __DB_SOCKET = "/www/server/mysql/mysql.sock"
 
     __DB_CHARSET = "utf8"
 
-    def __Conn(self):
-        # print(self.__DB_HOST, self.__DB_USER, self.__DB_PASS, self.__DB_SOCKET)
-        '''连接数据库'''
-        try:
+    def _build_conn_kwargs(self, use_socket=False):
+        """构建数据库连接参数"""
+        kwargs = {
+            "host": self.__DB_HOST,
+            "user": self.__DB_USER,
+            "passwd": self.__DB_PASS,
+            "database": self.__DB_NAME,
+            "port": int(self.__DB_PORT),
+            "charset": self.__DB_CHARSET,
+            "connect_timeout": self.__DB_TIMEOUT,
+            "cursorclass": pymysql.cursors.DictCursor,
+        }
+        if use_socket:
+            kwargs["unix_socket"] = self.__DB_SOCKET
+        return kwargs
 
-            if self.__DB_HOST != 'localhost':
-                try:
-                    self.__DB_CONN = pymysql.connect(host=self.__DB_HOST, user=self.__DB_USER, passwd=self.__DB_PASS,
-                                                    database=self.__DB_NAME,
-                                                    port=int(self.__DB_PORT), charset=self.__DB_CHARSET, connect_timeout=self.__DB_TIMEOUT,
-                                                    cursorclass=pymysql.cursors.DictCursor)
-                except Exception as e:
-                    self.__DB_CONN = pymysql.connect(host=self.__DB_HOST, user=self.__DB_USER, passwd=self.__DB_PASS,
-                                                    database=self.__DB_NAME,
-                                                    port=int(self.__DB_PORT), charset=self.__DB_CHARSET, connect_timeout=self.__DB_TIMEOUT,
-                                                    cursorclass=pymysql.cursors.DictCursor)
-            elif os.path.exists(self.__DB_SOCKET):
-                try:
-                    self.__DB_CONN = pymysql.connect(host=self.__DB_HOST, user=self.__DB_USER, passwd=self.__DB_PASS,
-                                                     database=self.__DB_NAME,
-                                                     port=int(self.__DB_PORT), charset=self.__DB_CHARSET, connect_timeout=self.__DB_TIMEOUT,
-                                                     unix_socket=self.__DB_SOCKET, cursorclass=pymysql.cursors.DictCursor)
-                except Exception as e:
-                    self.__DB_HOST = '127.0.0.1'
-                    self.__DB_CONN = pymysql.connect(host=self.__DB_HOST, user=self.__DB_USER, passwd=self.__DB_PASS,
-                                                     database=self.__DB_NAME,
-                                                     port=int(self.__DB_PORT), charset=self.__DB_CHARSET, connect_timeout=self.__DB_TIMEOUT,
-                                                     unix_socket=self.__DB_SOCKET, cursorclass=pymysql.cursors.DictCursor)
-            else:
-                try:
-                    self.__DB_CONN = pymysql.connect(host=self.__DB_HOST, user=self.__DB_USER, passwd=self.__DB_PASS,
-                                                     database=self.__DB_NAME,
-                                                     port=int(self.__DB_PORT), charset=self.__DB_CHARSET, connect_timeout=self.__DB_TIMEOUT,
-                                                     cursorclass=pymysql.cursors.DictCursor)
-                except Exception as e:
-                    self.__DB_HOST = '127.0.0.1'
-                    self.__DB_CONN = pymysql.connect(host=self.__DB_HOST, user=self.__DB_USER, passwd=self.__DB_PASS,
-                                                     database=self.__DB_NAME,
-                                                     port=int(self.__DB_PORT), charset=self.__DB_CHARSET, connect_timeout=self.__DB_TIMEOUT,
-                                                     cursorclass=pymysql.cursors.DictCursor)
+    def __Conn(self):
+        """连接数据库，支持远程、socket 和本地三种方式"""
+        try:
+            use_socket = (
+                self.__DB_HOST == "localhost"
+                and os.path.exists(self.__DB_SOCKET)
+            )
+
+            kwargs = self._build_conn_kwargs(use_socket=use_socket)
+
+            try:
+                self.__DB_CONN = pymysql.connect(**kwargs)
+            except Exception:
+                # 回退到 127.0.0.1 重试
+                self.__DB_HOST = "127.0.0.1"
+                kwargs["host"] = self.__DB_HOST
+                self.__DB_CONN = pymysql.connect(**kwargs)
 
             self.__DB_CUR = self.__DB_CONN.cursor()
             return True
@@ -93,7 +84,7 @@ class ORM:
     def getPwd(self):
         return self.__DB_PASS
 
-    def setTimeout(self, timeout = 1):
+    def setTimeout(self, timeout=1):
         self.__DB_TIMEOUT = timeout
         return True
 

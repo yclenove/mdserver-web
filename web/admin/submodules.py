@@ -22,6 +22,7 @@ from .firewall import blueprint as FirewallModule
 from .monitor import blueprint as MonitorModule
 from .system import blueprint as SystemModule
 
+
 def get_submodules():
     return [
         DashboardModule,

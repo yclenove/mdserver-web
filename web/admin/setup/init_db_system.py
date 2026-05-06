@@ -12,5 +12,5 @@ from utils.system import monitor
 
 
 def init_db_system():
-	monitor.instance().initDBFile()
-	return True
+    monitor.instance().initDBFile()
+    return True

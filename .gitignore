@@ -196,3 +196,29 @@ plugins/goedge-happy
 /plugins/choose-linux-python
 *.md5
 /bak
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Frontend build output
+web/static/dist/
+
+# IDE
+.vscode/
+
+# Environment
+.env.local
+.env.*.local
+
+# Iteration temp files
+scripts/iteration/issues.json
+scripts/iteration/current_iteration.txt
+
+# Temp scripts
+do_login.py
+do_login2.py
+fix_admin.py
+reset_pw.py

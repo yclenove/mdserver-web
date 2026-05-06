@@ -9,14 +9,12 @@
 # ---------------------------------------------------------------------------------
 
 import os
-import re
 import threading
-import re
-import time
 import json
 
 import core.mw as mw
 import thisdb
+
 
 class setting(object):
 
@@ -34,24 +32,23 @@ class setting(object):
     def __init__(self):
         pass
 
-
     # 保存面板证书
     def savePanelSsl(self, choose, cert_pem, private_key):
-        if not mw.inArray(['local','nginx'], choose):
-            return mw.returnData(True, '保存错误面板SSL类型!')
+        if not mw.inArray(["local", "nginx"], choose):
+            return mw.returnData(True, "保存错误面板SSL类型!")
 
         pdir = mw.getPanelDir()
-        keyPath = pdir+'/ssl/'+choose+'/private.pem'
-        certPath = pdir+'/ssl/'+choose+'/cert.pem'
-        check_cert_pl = '/tmp/cert.pl'
+        keyPath = pdir + "/ssl/" + choose + "/private.pem"
+        certPath = pdir + "/ssl/" + choose + "/cert.pem"
+        check_cert_pl = "/tmp/cert.pl"
 
         if not os.path.exists(keyPath):
-            return mw.returnData(False, '【'+choose+'】SSL类型不存在,先申请!')
+            return mw.returnData(False, "【" + choose + "】SSL类型不存在,先申请!")
 
-        if(private_key.find('KEY') == -1):
-            return mw.returnData(False, '秘钥错误，请检查!')
-        if(cert_pem.find('CERTIFICATE') == -1):
-            return mw.returnData(False, '证书错误，请检查!')
+        if private_key.find("KEY") == -1:
+            return mw.returnData(False, "秘钥错误，请检查!")
+        if cert_pem.find("CERTIFICATE") == -1:
+            return mw.returnData(False, "证书错误，请检查!")
 
         mw.writeFile(check_cert_pl, cert_pem)
         if private_key:
@@ -60,54 +57,52 @@ class setting(object):
             mw.writeFile(certPath, cert_pem)
         if not mw.checkCert(check_cert_pl):
             os.remove(check_cert_pl)
-            return mw.returnData(False, '证书错误,请检查!')
+            return mw.returnData(False, "证书错误,请检查!")
         os.remove(check_cert_pl)
-        return mw.returnData(True, '证书已保存!')
-
+        return mw.returnData(True, "证书已保存!")
 
     def getPanelSsl(self):
         rdata = {}
-        rdata['choose'] = 'local'
-
+        rdata["choose"] = "local"
 
         pdir = mw.getPanelDir()
 
-        keyPath = pdir+'/ssl/local/private.pem'
-        certPath = pdir+'/ssl/local/cert.pem'
+        keyPath = pdir + "/ssl/local/private.pem"
+        certPath = pdir + "/ssl/local/cert.pem"
 
         if not os.path.exists(certPath):
             mw.createLocalSSL()
 
         cert = {}
-        cert['privateKey'] = mw.readFile(keyPath)
-        cert['is_https'] = ''
-        cert['certPem'] = mw.readFile(certPath)
-        cert['info'] = mw.getCertName(certPath)
-        rdata['local'] = cert
+        cert["privateKey"] = mw.readFile(keyPath)
+        cert["is_https"] = ""
+        cert["certPem"] = mw.readFile(certPath)
+        cert["info"] = mw.getCertName(certPath)
+        rdata["local"] = cert
 
         panel_ssl = mw.getServerDir() + "/web_conf/nginx/vhost/panel.conf"
         if not os.path.exists(panel_ssl):
-            cert['is_https'] = ''
+            cert["is_https"] = ""
         else:
             ssl_data = mw.readFile(panel_ssl)
-            if ssl_data.find('$server_port !~ 443') != -1:
-                cert['is_https'] = 'checked'
+            if ssl_data.find("$server_port !~ 443") != -1:
+                cert["is_https"] = "checked"
 
-        keyPath = pdir+'/ssl/nginx/private.pem'
-        certPath = pdir+'/ssl/nginx/cert.pem'
+        keyPath = pdir + "/ssl/nginx/private.pem"
+        certPath = pdir + "/ssl/nginx/cert.pem"
 
         cert = {}
-        cert['privateKey'] = ''
-        cert['certPem'] = ''
-        cert['info'] = {}
+        cert["privateKey"] = ""
+        cert["certPem"] = ""
+        cert["info"] = {}
         if os.path.exists(keyPath):
-            cert['privateKey'] = mw.readFile(keyPath)
+            cert["privateKey"] = mw.readFile(keyPath)
 
         if os.path.exists(keyPath):
-            cert['certPem'] = mw.readFile(certPath)
-            cert['info'] = mw.getCertName(certPath)
+            cert["certPem"] = mw.readFile(certPath)
+            cert["info"] = mw.getCertName(certPath)
 
-        rdata['nginx'] = cert
+        rdata["nginx"] = cert
 
         return rdata
 
@@ -115,83 +110,80 @@ class setting(object):
     def delPanelSsl(self, choose):
         ip = mw.getLocalIp()
         if mw.isAppleSystem():
-            ip = '127.0.0.1'
+            ip = "127.0.0.1"
 
-        
-        if not mw.inArray(['local','nginx'], choose):
-            return mw.returnData(True, '删除错误面板SSL类型!')
+        if not mw.inArray(["local", "nginx"], choose):
+            return mw.returnData(True, "删除错误面板SSL类型!")
 
         port = mw.getPanelPort()
 
-        to_panel_url = 'http://'+ip+":"+port+'/config'
+        to_panel_url = "http://" + ip + ":" + port + "/config"
 
-        if choose == 'local':
-            dst_path = mw.getPanelDir() + '/ssl/local'
+        if choose == "local":
+            dst_path = mw.getPanelDir() + "/ssl/local"
             if os.path.exists(dst_path):
-                mw.execShell('rm -rf ' + dst_path)
-                mw.restartMw();
-                return mw.returnData(True, '删除本地面板SSL成功!',to_panel_url)
+                mw.execShell("rm -rf " + dst_path)
+                mw.restartMw()
+                return mw.returnData(True, "删除本地面板SSL成功!", to_panel_url)
             else:
-                return mw.returnData(True, '已经删除本地面板SSL!',to_panel_url)
+                return mw.returnData(True, "已经删除本地面板SSL!", to_panel_url)
 
-        if choose == 'nginx':
+        if choose == "nginx":
 
-            bind_domain = self.__file['bind_domain']
+            bind_domain = self.__file["bind_domain"]
             if not os.path.exists(bind_domain):
-                return mw.returnData(False, '未绑定域名!')
+                return mw.returnData(False, "未绑定域名!")
 
             siteName = mw.readFile(bind_domain).strip()
 
-            src_path = mw.getServerDir() + '/web_conf/letsencrypt/' + siteName
+            src_path = mw.getServerDir() + "/web_conf/letsencrypt/" + siteName
 
-            dst_path = mw.getPanelDir() + '/ssl/nginx'
-            dst_csrpath = dst_path + '/cert.pem'
-            dst_keypath = dst_path + '/private.pem'
+            dst_path = mw.getPanelDir() + "/ssl/nginx"
+            dst_csrpath = dst_path + "/cert.pem"
+            dst_keypath = dst_path + "/private.pem"
 
             if os.path.exists(src_path) or os.path.exists(dst_path):
-                if os.path.exists(src_letpath):
-                    mw.execShell('rm -rf ' + src_letpath)
+                if os.path.exists(src_path):
+                    mw.execShell("rm -rf " + src_path)
                 if os.path.exists(dst_csrpath):
-                    mw.execShell('rm -rf ' + dst_csrpath)
+                    mw.execShell("rm -rf " + dst_csrpath)
                 if os.path.exists(dst_keypath):
-                    mw.execShell('rm -rf ' + dst_keypath)
+                    mw.execShell("rm -rf " + dst_keypath)
                 mw.restartNginx()
-                return mw.returnData(True, '删除面板SSL成功!')
+                return mw.returnData(True, "删除面板SSL成功!")
 
             mw.restartNginx()
             mw.restartMw()
-            return mw.returnData(False, '已经删除面板SSL!')
-        return  mw.returnData(False, '未知类型!')
+            return mw.returnData(False, "已经删除面板SSL!")
+        return mw.returnData(False, "未知类型!")
 
     # 面板本地SSL设置
     def setPanelLocalSsl(self, cert_type):
-        panel_ssl_data = thisdb.getOptionByJson('panel_ssl', default={'open':False})
+        panel_ssl_data = thisdb.getOptionByJson("panel_ssl", default={"open": False})
 
-        if not panel_ssl_data['open']:
-            panel_ssl_data['open'] = True
+        if not panel_ssl_data["open"]:
+            panel_ssl_data["open"] = True
 
         pdir = mw.getPanelDir()
-        cert = {}
-        keyPath = pdir+'/ssl/local/private.pem'
-        certPath = pdir+'/ssl/local/cert.pem'
+        pdir + "/ssl/local/private.pem"
+        certPath = pdir + "/ssl/local/cert.pem"
         if not os.path.exists(certPath):
             mw.createLocalSSL()
 
-        panel_ssl_data['choose'] = 'local'
-        thisdb.setOption('panel_ssl', json.dumps(panel_ssl_data))
+        panel_ssl_data["choose"] = "local"
+        thisdb.setOption("panel_ssl", json.dumps(panel_ssl_data))
         mw.restartMw()
-        return mw.returnData(True, '设置成功')
+        return mw.returnData(True, "设置成功")
 
     def closePanelSsl(self):
-        panel_ssl_data = thisdb.getOptionByJson('panel_ssl', default={'open':False})
+        panel_ssl_data = thisdb.getOptionByJson("panel_ssl", default={"open": False})
 
-        if panel_ssl_data['open']:
-            panel_ssl_data['open'] = False
+        if panel_ssl_data["open"]:
+            panel_ssl_data["open"] = False
 
-        thisdb.setOption('panel_ssl', json.dumps(panel_ssl_data))
+        thisdb.setOption("panel_ssl", json.dumps(panel_ssl_data))
         mw.restartMw()
-        return mw.returnData(True, '设置成功')
-
+        return mw.returnData(True, "设置成功")
 
     # 申请面板let证书
     # def applyPanelAcmeSsl(self):
@@ -247,9 +239,15 @@ class setting(object):
     #             if type(data['msg']) != str:
     #                 msg = data['msg'][0]
     #                 emsg = data['msg'][1]['challenges'][0]['error']
-    #                 msg = msg + '<p><span>响应状态:</span>' + str(emsg['status']) + '</p><p><span>错误类型:</span>' + emsg[
-    #                     'type'] + '</p><p><span>错误代码:</span>' + emsg['detail'] + '</p>'
-    #             return mw.returnJson(data['status'], msg, data['msg'])
+    #                 msg = (msg + '<p><span>响应状态:</span>'
+    #                     + str(emsg['status'])
+    #                     + '</p><p><span>错误类型:</span>'
+    #                     + emsg['type']
+    #                     + '</p><p><span>错误代码:</span>'
+    #                     + emsg['detail'] + '</p>')
+    #             return mw.returnJson(
+    #                 data['status'], msg, data['msg']
+    #             )
     #     else:
     #         is_already_apply = True
 
@@ -273,22 +271,18 @@ class setting(object):
 
     def setPanelDomain(self, domain):
         port = mw.getPanelPort()
-        
-        panel_domain = thisdb.getOption('panel_domain', default='')
-        if domain == '':
+        if domain == "":
             ip = mw.getLocalIp()
             client_ip = mw.getClientIp()
-            if client_ip in ['127.0.0.1', 'localhost', '::1']:
+            if client_ip in ["127.0.0.1", "localhost", "::1"]:
                 ip = client_ip
 
-            to_panel_url = 'http://'+ip+":"+str(port)+'/setting/index'
-            thisdb.setOption('panel_domain', '')
+            to_panel_url = "http://" + ip + ":" + str(port) + "/setting/index"
+            thisdb.setOption("panel_domain", "")
             mw.restartMw()
-            return mw.returnData(True, '清空域名成功!', to_panel_url)
+            return mw.returnData(True, "清空域名成功!", to_panel_url)
 
-        thisdb.setOption('panel_domain', domain)
-        to_panel_url = 'http://'+domain+":"+str(port)+'/setting/index'
+        thisdb.setOption("panel_domain", domain)
+        to_panel_url = "http://" + domain + ":" + str(port) + "/setting/index"
         mw.restartMw()
-        return mw.returnData(True, '设置域名成功!',to_panel_url)
-
-
+        return mw.returnData(True, "设置域名成功!", to_panel_url)

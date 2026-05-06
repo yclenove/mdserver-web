@@ -12,26 +12,19 @@
 # SSH终端操作
 # ---------------------------------------------------------------------------------
 
-import json
 import time
-import os
-import sys
-import socket
 import threading
-import re
 
-from io import BytesIO, StringIO
 
 import core.mw as mw
-import paramiko
 
-from flask_socketio import SocketIO, emit, send
+from flask_socketio import emit
 
 
 class ssh_local(object):
 
-    __debug_file = 'logs/ssh_local.log'
-    __log_type = 'SSH终端'
+    __debug_file = "logs/ssh_local.log"
+    __log_type = "SSH终端"
 
     __ssh = None
     __lock = False
@@ -40,7 +33,7 @@ class ssh_local(object):
     _instance_lock = threading.Lock()
 
     def __init__(self):
-        self.__debug_file = mw.getPanelDir()+ '/logs/ssh_terminal.log'
+        self.__debug_file = mw.getPanelDir() + "/logs/ssh_terminal.log"
 
     @classmethod
     def instance(cls, *args, **kwargs):
@@ -51,39 +44,40 @@ class ssh_local(object):
         return ssh_local._instance
 
     def debug(self, msg):
-        msg = "{} - {}:{} => {} \n".format(mw.formatDate(),
-                                           self.__host, self.__port, msg)
+        msg = "{} - {}:{} => {} \n".format(
+            mw.formatDate(), self.__host, self.__port, msg
+        )
         if not mw.isDebugMode():
             return
-        mw.writeFile(self.__debug_file, msg, 'a+')
+        mw.writeFile(self.__debug_file, msg, "a+")
 
     def returnMsg(self, status, msg):
-        return {'status': status, 'msg': msg}
-
+        return {"status": status, "msg": msg}
 
     def connectSsh(self):
-        if self.__lock :
+        if self.__lock:
             return False
         self.__lock = True
 
         import paramiko
+
         ssh = paramiko.SSHClient()
         mw.createSshInfo()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         port = mw.getSSHPort()
         try:
-            ssh.connect('127.0.0.1', 22, timeout=5)
-        except Exception as e:
-            ssh.connect('127.0.0.1', port, timeout=5)
-        except Exception as e:
-            ssh.connect('localhost', port, timeout=5)
-        except Exception as e:
+            ssh.connect("127.0.0.1", 22, timeout=5)
+        except Exception:
+            ssh.connect("127.0.0.1", port, timeout=5)
+        except Exception:
+            ssh.connect("localhost", port, timeout=5)
+        except Exception:
             ssh.connect(mw.getHostAddr(), port, timeout=30)
-        except Exception as e:
+        except Exception:
             return False
 
-        shell = ssh.invoke_shell(term='xterm', width=83, height=21)
+        shell = ssh.invoke_shell(term="xterm", width=83, height=21)
         shell.setblocking(0)
 
         self.__lock = False
@@ -96,22 +90,21 @@ class ssh_local(object):
         try:
             if self.__ssh:
                 self.__ssh.close()
-        except:
+        except Exception:
             pass
 
     def wsSend(self, recv):
         try:
             t = recv.decode("utf-8")
-            return emit('server_response', {'data': t})
-        except Exception as e:
-            return emit('server_response', {'data': recv})
+            return emit("server_response", {"data": t})
+        except Exception:
+            return emit("server_response", {"data": recv})
 
     def wsSendConnect(self):
-        return emit('connect', {'data': 'ok'})
+        return emit("connect", {"data": "ok"})
 
     def wsSendReConnect(self):
-        return emit('reconnect', {'data': 'ok'})
-
+        return emit("reconnect", {"data": "ok"})
 
     def run(self, info):
         if not self.__ssh:
@@ -126,7 +119,7 @@ class ssh_local(object):
                 time.sleep(0.005)
                 recv = self.__ssh.recv(8192)
                 return self.wsSend(recv)
-            except Exception as ex:
-                return self.wsSend('')
+            except Exception:
+                return self.wsSend("")
         else:
             return self.wsSend("连接中...\r\n")

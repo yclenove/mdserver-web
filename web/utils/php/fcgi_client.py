@@ -26,17 +26,15 @@
 #
 # Copyright (c) 2011 Vladimir Rusinov <vladimir@greenmice.info>
 
-__author__ = 'Allan Saddi <allan@saddi.com>'
-__version__ = '$Revision$'
-import sys
+__author__ = "Allan Saddi <allan@saddi.com>"
+__version__ = "$Revision$"
 import select
 import struct
 import socket
 import errno
-import types
 
 
-__all__ = ['FCGIApp']
+__all__ = ["FCGIApp"]
 
 # Constants from the spec.
 FCGI_LISTENSOCK_FILENO = 0
@@ -71,14 +69,14 @@ FCGI_CANT_MPX_CONN = 1
 FCGI_OVERLOADED = 2
 FCGI_UNKNOWN_ROLE = 3
 
-FCGI_MAX_CONNS = 'FCGI_MAX_CONNS'
-FCGI_MAX_REQS = 'FCGI_MAX_REQS'
-FCGI_MPXS_CONNS = 'FCGI_MPXS_CONNS'
+FCGI_MAX_CONNS = "FCGI_MAX_CONNS"
+FCGI_MAX_REQS = "FCGI_MAX_REQS"
+FCGI_MPXS_CONNS = "FCGI_MPXS_CONNS"
 
-FCGI_Header = '!BBHHBx'
-FCGI_BeginRequestBody = '!HB5x'
-FCGI_EndRequestBody = '!LB3x'
-FCGI_UnknownTypeBody = '!B7x'
+FCGI_Header = "!BBHHBx"
+FCGI_BeginRequestBody = "!HB5x"
+FCGI_EndRequestBody = "!LB3x"
+FCGI_UnknownTypeBody = "!B7x"
 
 FCGI_BeginRequestBody_LEN = struct.calcsize(FCGI_BeginRequestBody)
 FCGI_EndRequestBody_LEN = struct.calcsize(FCGI_EndRequestBody)
@@ -89,17 +87,17 @@ if __debug__:
 
     # Set non-zero to write debug output to a file.
     DEBUG = 0
-    DEBUGLOG = '/www/server/mdserver-web/logs/fastcgi.log'
+    DEBUGLOG = "/www/server/mdserver-web/logs/fastcgi.log"
 
     def _debug(level, msg):
         if DEBUG < level:
             return
 
         try:
-            f = open(DEBUGLOG, 'a')
-            f.write('%sfcgi: %s\n' % (time.ctime()[4:-4], msg))
+            f = open(DEBUGLOG, "a")
+            f.write("%sfcgi: %s\n" % (time.ctime()[4:-4], msg))
             f.close()
-        except:
+        except Exception:
             pass
 
 
@@ -112,21 +110,21 @@ def decode_pair(s, pos=0):
     """
     nameLength = ord(s[pos])
     if nameLength & 128:
-        nameLength = struct.unpack('!L', s[pos:pos + 4])[0] & 0x7fffffff
+        nameLength = struct.unpack("!L", s[pos : pos + 4])[0] & 0x7FFFFFFF
         pos += 4
     else:
         pos += 1
 
     valueLength = ord(s[pos])
     if valueLength & 128:
-        valueLength = struct.unpack('!L', s[pos:pos + 4])[0] & 0x7fffffff
+        valueLength = struct.unpack("!L", s[pos : pos + 4])[0] & 0x7FFFFFFF
         pos += 4
     else:
         pos += 1
 
-    name = s[pos:pos + nameLength]
+    name = s[pos : pos + nameLength]
     pos += nameLength
-    value = s[pos:pos + valueLength]
+    value = s[pos : pos + valueLength]
     pos += valueLength
 
     return (pos, (name, value))
@@ -142,13 +140,13 @@ def encode_pair(name, value):
     if nameLength < 128:
         s = chr(nameLength).encode()
     else:
-        s = struct.pack('!L', nameLength | 0x80000000)
+        s = struct.pack("!L", nameLength | 0x80000000)
 
     valueLength = len(value)
     if valueLength < 128:
         s += chr(valueLength).encode()
     else:
-        s += struct.pack('!L', valueLength | 0x80000000)
+        s += struct.pack("!L", valueLength | 0x80000000)
 
     return s + name + value
 
@@ -166,7 +164,7 @@ class Record(object):
         self.requestId = requestId
         self.contentLength = 0
         self.paddingLength = 0
-        self.contentData = ''
+        self.contentData = ""
 
     def _recvall(sock, length):
         """
@@ -190,33 +188,40 @@ class Record(object):
             dataLen = len(data)
             recvLen += dataLen
             length -= dataLen
-        return b''.join(dataList), recvLen
+        return b"".join(dataList), recvLen
+
     _recvall = staticmethod(_recvall)
 
     def read(self, sock):
         """Read and decode a Record from a socket."""
         try:
             header, length = self._recvall(sock, FCGI_HEADER_LEN)
-        except:
+        except Exception:
             raise EOFError
 
         if length < FCGI_HEADER_LEN:
             raise EOFError
 
-        self.version, self.type, self.requestId, self.contentLength, \
-            self.paddingLength = struct.unpack(FCGI_Header, header)
+        (
+            self.version,
+            self.type,
+            self.requestId,
+            self.contentLength,
+            self.paddingLength,
+        ) = struct.unpack(FCGI_Header, header)
 
         if __debug__:
-            _debug(9, 'read: fd = %d, type = %d, requestId = %d, '
-                   'contentLength = %d' %
-                   (sock.fileno(), self.type, self.requestId,
-                    self.contentLength))
+            _debug(
+                9,
+                "read: fd = %d, type = %d, requestId = %d, "
+                "contentLength = %d"
+                % (sock.fileno(), self.type, self.requestId, self.contentLength),
+            )
 
         if self.contentLength:
             try:
-                self.contentData, length = self._recvall(sock,
-                                                         self.contentLength)
-            except:
+                self.contentData, length = self._recvall(sock, self.contentLength)
+            except Exception:
                 raise EOFError
 
             if length < self.contentLength:
@@ -225,7 +230,7 @@ class Record(object):
         if self.paddingLength:
             try:
                 self._recvall(sock, self.paddingLength)
-            except:
+            except Exception:
                 raise EOFError
 
     def _sendall(sock, data):
@@ -244,6 +249,7 @@ class Record(object):
                     raise
             data = data[sent:]
             length -= sent
+
     _sendall = staticmethod(_sendall)
 
     def write(self, sock):
@@ -251,19 +257,26 @@ class Record(object):
         self.paddingLength = -self.contentLength & 7
 
         if __debug__:
-            _debug(9, 'write: fd = %d, type = %d, requestId = %d, '
-                   'contentLength = %d' %
-                   (sock.fileno(), self.type, self.requestId,
-                    self.contentLength))
+            _debug(
+                9,
+                "write: fd = %d, type = %d, requestId = %d, "
+                "contentLength = %d"
+                % (sock.fileno(), self.type, self.requestId, self.contentLength),
+            )
 
-        header = struct.pack(FCGI_Header, self.version, self.type,
-                             self.requestId, self.contentLength,
-                             self.paddingLength)
+        header = struct.pack(
+            FCGI_Header,
+            self.version,
+            self.type,
+            self.requestId,
+            self.contentLength,
+            self.paddingLength,
+        )
         self._sendall(sock, header)
         if self.contentLength:
             self._sendall(sock, self.contentData)
         if self.paddingLength:
-            self._sendall(sock, b'\x00' * self.paddingLength)
+            self._sendall(sock, b"\x00" * self.paddingLength)
 
 
 class FCGIApp(object):
@@ -305,9 +318,9 @@ class FCGIApp(object):
         self._fcgiParams(sock, requestId, {})
 
         # Transfer wsgi.input to FCGI_STDIN
-        content_length = int(environ.get('CONTENT_LENGTH') or 0)
-        s = ''
-        #io = StringIO(stdin)
+        content_length = int(environ.get("CONTENT_LENGTH") or 0)
+        s = ""
+        # io = StringIO(stdin)
         while True:
             if not io:
                 break
@@ -332,7 +345,7 @@ class FCGIApp(object):
             if isinstance(self._connect, str):
                 sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
                 sock.connect(self._connect)
-            elif hasattr(socket, 'create_connection'):
+            elif hasattr(socket, "create_connection"):
                 sock = socket.create_connection(self._connect)
             else:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -348,8 +361,8 @@ class FCGIApp(object):
         outrec = Record(FCGI_GET_VALUES)
         data = []
         for name in vars:
-            data.append(encode_pair(name, ''))
-        data = ''.join(data)
+            data.append(encode_pair(name, ""))
+        data = "".join(data)
         outrec.contentData = data
         outrec.contentLength = len(data)
         outrec.write(sock)
@@ -369,16 +382,23 @@ class FCGIApp(object):
         rec = Record(FCGI_PARAMS, requestId)
         data = []
         for name, value in params.items():
-            data.append(encode_pair(name.encode(
-                'latin-1'), value.encode('latin-1')))
-        data = b''.join(data)
+            data.append(encode_pair(name.encode("latin-1"), value.encode("latin-1")))
+        data = b"".join(data)
         rec.contentData = data
         rec.contentLength = len(data)
         rec.write(sock)
 
-    _environPrefixes = ['SERVER_', 'HTTP_', 'REQUEST_', 'REMOTE_', 'PATH_',
-                        'CONTENT_', 'DOCUMENT_', 'SCRIPT_']
-    _environCopies = ['SCRIPT_NAME', 'QUERY_STRING', 'AUTH_TYPE']
+    _environPrefixes = [
+        "SERVER_",
+        "HTTP_",
+        "REQUEST_",
+        "REMOTE_",
+        "PATH_",
+        "CONTENT_",
+        "DOCUMENT_",
+        "SCRIPT_",
+    ]
+    _environCopies = ["SCRIPT_NAME", "QUERY_STRING", "AUTH_TYPE"]
     _environRenames = []
 
     def _defaultFilterEnviron(self, environ):

@@ -13,41 +13,43 @@
 # ---------------------------------------------------------------------------------
 
 import os
-import sys
 import sqlite3
 
-import core.mw as mw
 
 def getPanelDir():
     return os.path.dirname(os.getcwd())
 
+
 def getTracebackInfo():
     import traceback
+
     return traceback.format_exc()
 
-class Sql():
-    #------------------------------
+
+class Sql:
+    # ------------------------------
     # 数据库操作类 For sqlite3
-    #------------------------------
-    __DB_FILE = None            # 数据库文件
-    __DB_CONN = None            # 数据库连接对象
-    __DB_TABLE = ""             # 被操作的表名称
-    __OPT_WHERE = ""            # where条件
-    __OPT_LIMIT = ""            # limit条件
-    __OPT_GROUP = ""            # group条件
-    __OPT_ORDER = ""            # order条件
-    __OPT_FIELD = "*"           # field条件
-    __OPT_PARAM = ()            # where值
+    # ------------------------------
+    __DB_FILE = None  # 数据库文件
+    __DB_CONN = None  # 数据库连接对象
+    __DB_TABLE = ""  # 被操作的表名称
+    __OPT_WHERE = ""  # where条件
+    __OPT_LIMIT = ""  # limit条件
+    __OPT_GROUP = ""  # group条件
+    __OPT_ORDER = ""  # order条件
+    __OPT_FIELD = "*"  # field条件
+    __OPT_PARAM = ()  # where值
 
     __debug = False
+    __field_cache = {}  # 字段缓存，避免重复查询 PRAGMA
 
     def __init__(self):
-        self.__DB_FILE = getPanelDir()+'/data/panel.db'
+        self.__DB_FILE = getPanelDir() + "/data/panel.db"
 
     def __getConn(self):
         # 取数据库对象
         try:
-            if self.__DB_CONN == None:
+            if self.__DB_CONN is None:
                 self.__DB_CONN = sqlite3.connect(self.__DB_FILE)
                 self.__DB_CONN.text_factory = str
         except Exception as ex:
@@ -63,17 +65,16 @@ class Sql():
         return self
 
     def autoTextFactory(self):
-        if sys.version_info[0] == 3:
-            self.__DB_CONN.text_factory = lambda x: str(x, encoding="utf-8", errors='ignore')
-        else:
-            self.__DB_CONN.text_factory = lambda x: unicode(x, "utf-8", "ignore")
+        self.__DB_CONN.text_factory = lambda x: str(
+            x, encoding="utf-8", errors="ignore"
+        )
 
     def dbfile(self, name):
-        self.__DB_FILE = getPanelDir()+'/data/' + name + '.db'
+        self.__DB_FILE = getPanelDir() + "/data/" + name + ".db"
         return self
 
-    def dbPos(self, path, name, suffix_name = 'db'):
-        self.__DB_FILE = path + '/' + name + '.' + suffix_name
+    def dbPos(self, path, name, suffix_name="db"):
+        self.__DB_FILE = path + "/" + name + "." + suffix_name
         return self
 
     def table(self, table):
@@ -126,7 +127,12 @@ class Sql():
             self.__OPT_FIELD = field
         return self
 
-    def getDbField(self,name):
+    def getDbField(self, name):
+        # 使用缓存避免重复查询 PRAGMA
+        cache_key = self.__DB_FILE + ":" + name
+        if cache_key in self.__field_cache:
+            return self.__field_cache[cache_key]
+
         sql = "PRAGMA table_info(%s)" % name
         result = self.__DB_CONN.execute(sql)
         data = result.fetchall()
@@ -134,101 +140,77 @@ class Sql():
         fields = []
         for i in data:
             fields.append(i[1])
+
+        # 缓存字段信息
+        self.__field_cache[cache_key] = fields
         return fields
 
-    def getDbFieldString(self,name):
+    def getDbFieldString(self, name):
         fields = self.getDbField(name)
-        return ','.join(fields)
-        
+        return ",".join(fields)
+
+    def _rows_to_dicts(self, data, field_names):
+        """将查询结果的元组行转换为字典列表"""
+        return [
+            {field_names[i]: row[i] for i in range(len(field_names))}
+            for row in data
+        ]
+
+    def _build_sql(self):
+        """构建 SELECT SQL 语句"""
+        return (
+            "SELECT " + self.__OPT_FIELD
+            + " FROM " + self.__DB_TABLE
+            + self.__OPT_WHERE
+            + self.__OPT_GROUP
+            + self.__OPT_ORDER
+            + self.__OPT_LIMIT
+        )
 
     def select(self):
         # 查询数据集
         self.__getConn()
         try:
-            sql = "SELECT " + self.__OPT_FIELD + " FROM " + self.__DB_TABLE + \
-                self.__OPT_WHERE + self.__OPT_GROUP + self.__OPT_ORDER + self.__OPT_LIMIT
+            sql = self._build_sql()
 
             if self.__debug:
                 print(sql)
                 print(self.__OPT_PARAM)
-                
+
             result = self.__DB_CONN.execute(sql, self.__OPT_PARAM)
             data = result.fetchall()
             if len(data) == 0:
                 return data
 
-            # 构造字曲系列
+            # 构造字典系列
             if self.__OPT_FIELD != "*":
-                field = self.__OPT_FIELD.split(',')
-                tmp = []
-                for row in data:
-                    i = 0
-                    t = {}
-                    for key in field:
-                        t[key] = row[i]
-                        i += 1
-                    tmp.append(t)
-                    del(t)
-                data = tmp
-                del(tmp)
+                field = self.__OPT_FIELD.split(",")
             else:
                 field = self.getDbField(self.__DB_TABLE)
-                tmp = []
-                for row in data:
-                    i = 0
-                    t = {}
-                    for key in field:
-                        t[key] = row[i]
-                        i += 1
-                    tmp.append(t)
-                    del(t)
-                data = tmp
-                del(tmp)
-                # 将元组转换成列表
-                # tmp = map(list, data)
-                # data = tmp
-                # del(tmp)
+
+            data = self._rows_to_dicts(data, field)
             self.__close()
             return data
-        except Exception as ex:
-            # return "error: " + str(ex)
+        except Exception:
             return []
 
-    def inquiry(self, input_field=''):
-        # 查询数据集
-        # 不清空查询参数
+    def inquiry(self, input_field=""):
+        # 查询数据集 - 不清空查询参数
         self.__getConn()
         try:
-            sql = "SELECT " + self.__OPT_FIELD + " FROM " + self.__DB_TABLE + \
-                self.__OPT_WHERE + self.__OPT_GROUP + self.__OPT_ORDER + self.__OPT_LIMIT
-            # if mw.isDebugMode():
-            #     print(sql, self.__OPT_PARAM)
+            sql = self._build_sql()
             result = self.__DB_CONN.execute(sql, self.__OPT_PARAM)
             data = result.fetchall()
-            # 构造字曲系列
+
             if self.__OPT_FIELD != "*":
-
-                if input_field != "":
-                    field = input_field.split(',')
-                else:
-                    field = self.__OPT_FIELD.split(',')
-
-                tmp = []
-                for row in data:
-                    i = 0
-                    tmp1 = {}
-                    for key in field:
-                        tmp1[key] = row[i]
-                        i += 1
-                    tmp.append(tmp1)
-                    del(tmp1)
-                data = tmp
-                del(tmp)
+                field = (
+                    input_field.split(",")
+                    if input_field
+                    else self.__OPT_FIELD.split(",")
+                )
+                data = self._rows_to_dicts(data, field)
             else:
-                # 将元组转换成列表
-                tmp = map(list, data)
-                data = tmp
-                del(tmp)
+                data = list(map(list, data))
             return data
         except Exception as ex:
             return "error: " + str(ex)
@@ -257,7 +239,7 @@ class Sql():
         data = self.field(key).select()
         try:
             return int(data[0][key])
-        except:
+        except Exception:
             return 0
 
     def add(self, keys, param):
@@ -265,11 +247,19 @@ class Sql():
         self.__getConn()
         try:
             values = ""
-            for key in keys.split(','):
+            for key in keys.split(","):
                 values += "?,"
-            values = self.checkInput(values[0:len(values) - 1])
-            sql = "INSERT INTO " + self.__DB_TABLE + \
-                "(" + keys + ") " + "VALUES(" + values + ")"
+            values = self.checkInput(values[0 : len(values) - 1])
+            sql = (
+                "INSERT INTO "
+                + self.__DB_TABLE
+                + "("
+                + keys
+                + ") "
+                + "VALUES("
+                + values
+                + ")"
+            )
             result = self.__DB_CONN.execute(sql, param)
             last_id = result.lastrowid
             self.__close()
@@ -296,7 +286,7 @@ class Sql():
     # 构造数据
     def __format_pdata(self, pdata):
         keys = pdata.keys()
-        keys_str = ','.join(keys)
+        keys_str = ",".join(keys)
         param = []
         for k in keys:
             param.append(pdata[k])
@@ -305,19 +295,19 @@ class Sql():
     def checkInput(self, data):
         if not data:
             return data
-        if type(data) != str:
+        if not isinstance(data, str):
             return data
         checkList = [
-            {'d': '<', 'r': '＜'},
-            {'d': '>', 'r': '＞'},
-            {'d': '\'', 'r': '‘'},
-            {'d': '"', 'r': '“'},
-            {'d': '&', 'r': '＆'},
-            {'d': '#', 'r': '＃'},
-            {'d': '<', 'r': '＜'}
+            {"d": "<", "r": "＜"},
+            {"d": ">", "r": "＞"},
+            {"d": "'", "r": "‘"},
+            {"d": '"', "r": "“"},
+            {"d": "&", "r": "＆"},
+            {"d": "#", "r": "＃"},
+            {"d": "<", "r": "＜"},
         ]
         for v in checkList:
-            data = data.replace(v['d'], v['r'])
+            data = data.replace(v["d"], v["r"])
         return data
 
     def addAll(self, keys, param):
@@ -325,12 +315,20 @@ class Sql():
         self.__getConn()
         try:
             values = ""
-            for key in keys.split(','):
+            for key in keys.split(","):
                 values += "?,"
-            values = values[0:len(values) - 1]
-            sql = "INSERT INTO " + self.__DB_TABLE + \
-                "(" + keys + ") " + "VALUES(" + values + ")"
-            result = self.__DB_CONN.execute(sql, param)
+            values = values[0 : len(values) - 1]
+            sql = (
+                "INSERT INTO "
+                + self.__DB_TABLE
+                + "("
+                + keys
+                + ") "
+                + "VALUES("
+                + values
+                + ")"
+            )
+            self.__DB_CONN.execute(sql, param)
             return True
         except Exception as ex:
             return "error: " + str(ex)
@@ -344,9 +342,9 @@ class Sql():
         self.__getConn()
         try:
             opt = ""
-            for key in keys.split(','):
+            for key in keys.split(","):
                 opt += key + "=?,"
-            opt = opt[0:len(opt) - 1]
+            opt = opt[0 : len(opt) - 1]
             sql = "UPDATE " + self.__DB_TABLE + " SET " + opt + self.__OPT_WHERE
 
             if self.__debug:
@@ -414,7 +412,8 @@ class Sql():
         # 创建数据表
         self.__getConn()
         import mw
-        script = mw.readFile('data/' + name + '.sql')
+
+        script = mw.readFile("data/" + name + ".sql")
         result = self.__DB_CONN.executescript(script)
         self.__DB_CONN.commit()
         return result.rowcount
@@ -423,6 +422,7 @@ class Sql():
         # 执行脚本
         self.__getConn()
         import mw
+
         script = mw.readFile(filename)
         result = self.__DB_CONN.executescript(script)
         self.__DB_CONN.commit()
@@ -441,5 +441,5 @@ class Sql():
         try:
             self.__DB_CONN.close()
             self.__DB_CONN = None
-        except:
+        except Exception:
             pass
