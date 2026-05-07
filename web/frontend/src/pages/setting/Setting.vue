@@ -40,6 +40,18 @@
           <template #label>
             <span><el-icon><Setting /></el-icon> 基本设置</span>
           </template>
+          <!-- 面板访问地址 -->
+          <el-alert type="info" :closable="false" class="panel-url-alert">
+            <template #title>
+              <div class="panel-url-row">
+                <span>面板访问地址: <strong>{{ panelAccessUrl }}</strong></span>
+                <el-button type="primary" link size="small" @click="copyPanelUrl">
+                  <el-icon><CopyDocument /></el-icon> 复制
+                </el-button>
+              </div>
+            </template>
+          </el-alert>
+
           <el-form :model="basicForm" label-width="120px" class="setting-form">
             <el-form-item label="面板别名">
               <el-input v-model="basicForm.webname" placeholder="面板别名" style="max-width: 400px" />
@@ -127,13 +139,24 @@
             </el-form-item>
             <el-divider />
             <el-form-item label="新密码">
-              <el-input v-model="userForm.newPassword" type="password" placeholder="新密码" show-password style="max-width: 300px" />
+              <el-input v-model="userForm.newPassword" type="password" placeholder="新密码" show-password style="max-width: 300px" @input="updatePasswordStrength" />
+            </el-form-item>
+            <el-form-item v-if="userForm.newPassword" label="密码强度">
+              <div class="password-strength">
+                <div class="strength-bars">
+                  <div class="strength-bar" :class="{ active: passwordStrength >= 1, weak: passwordStrength === 1, medium: passwordStrength === 2, strong: passwordStrength >= 3 }"></div>
+                  <div class="strength-bar" :class="{ active: passwordStrength >= 2, medium: passwordStrength === 2, strong: passwordStrength >= 3 }"></div>
+                  <div class="strength-bar" :class="{ active: passwordStrength >= 3, strong: passwordStrength >= 3 }"></div>
+                  <div class="strength-bar" :class="{ active: passwordStrength >= 4, strong: passwordStrength >= 4 }"></div>
+                </div>
+                <span class="strength-text" :class="passwordStrengthClass">{{ passwordStrengthText }}</span>
+              </div>
             </el-form-item>
             <el-form-item label="确认密码">
               <el-input v-model="userForm.confirmPassword" type="password" placeholder="再次输入新密码" show-password style="max-width: 300px" />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" @click="savePassword">修改密码</el-button>
+              <el-button type="primary" @click="savePassword" :disabled="passwordStrength < 1">修改密码</el-button>
             </el-form-item>
           </el-form>
         </el-tab-pane>
@@ -188,7 +211,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   getPanelSettings,
@@ -247,6 +270,49 @@ const userForm = reactive({
 });
 
 const userRules = {};
+
+// 面板访问地址
+const panelAccessUrl = computed(() => {
+  const host = window.location.hostname;
+  const port = panelInfo.value.port || window.location.port || '7200';
+  const path = panelInfo.value.admin_path || '';
+  const protocol = window.location.protocol;
+  return `${protocol}//${host}:${port}${path}`;
+});
+
+const copyPanelUrl = () => {
+  navigator.clipboard.writeText(panelAccessUrl.value).then(() => {
+    ElMessage.success('面板地址已复制到剪贴板');
+  }).catch(() => {
+    ElMessage.error('复制失败');
+  });
+};
+
+// 密码强度检测
+const passwordStrength = ref(0);
+const passwordStrengthText = computed(() => {
+  const texts = ['', '弱', '一般', '强', '非常强'];
+  return texts[passwordStrength.value] || '';
+});
+const passwordStrengthClass = computed(() => {
+  const classes = ['', 'text-weak', 'text-medium', 'text-strong', 'text-strong'];
+  return classes[passwordStrength.value] || '';
+});
+
+const updatePasswordStrength = () => {
+  const pwd = userForm.newPassword;
+  if (!pwd) {
+    passwordStrength.value = 0;
+    return;
+  }
+  let score = 0;
+  if (pwd.length >= 6) score++;
+  if (pwd.length >= 10) score++;
+  if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) score++;
+  if (/\d/.test(pwd)) score++;
+  if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd)) score++;
+  passwordStrength.value = Math.min(score, 4);
+};
 
 const fetchPanelInfo = async () => {
   try {
@@ -472,6 +538,17 @@ onMounted(() => {
     }
   }
 
+  .panel-url-alert {
+    margin-bottom: 16px;
+
+    .panel-url-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+  }
+
   .setting-form {
     max-width: 600px;
     padding: 16px 0;
@@ -481,6 +558,53 @@ onMounted(() => {
       margin-left: 8px;
       font-size: 12px;
       color: #909399;
+    }
+  }
+
+  .password-strength {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .strength-bars {
+      display: flex;
+      gap: 4px;
+
+      .strength-bar {
+        width: 40px;
+        height: 6px;
+        background: #e4e7ed;
+        border-radius: 3px;
+        transition: all 0.3s;
+
+        &.active.weak {
+          background: #f56c6c;
+        }
+
+        &.active.medium {
+          background: #e6a23c;
+        }
+
+        &.active.strong {
+          background: #67c23a;
+        }
+      }
+    }
+
+    .strength-text {
+      font-size: 12px;
+
+      &.text-weak {
+        color: #f56c6c;
+      }
+
+      &.text-medium {
+        color: #e6a23c;
+      }
+
+      &.text-strong {
+        color: #67c23a;
+      }
     }
   }
 

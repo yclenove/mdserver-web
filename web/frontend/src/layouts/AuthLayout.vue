@@ -1,11 +1,11 @@
 <template>
   <div class="auth-layout">
-    <div class="auth-container">
+    <div class="auth-container" :class="{ 'auth-container-enter': true }">
       <div class="auth-header">
-        <h1 class="auth-title">
+        <div class="auth-logo-wrapper">
           <el-icon class="title-icon"><Monitor /></el-icon>
-          mdserver-web
-        </h1>
+        </div>
+        <h1 class="auth-title">mdserver-web</h1>
         <p class="auth-subtitle">Linux 服务器管理面板</p>
       </div>
       <router-view />
@@ -46,13 +46,26 @@ const currentYear = computed(() => new Date().getFullYear());
 
 .auth-container {
   width: 420px;
+  max-width: 90vw;
   background: rgba(255, 255, 255, 0.95);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 40px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(10px);
   position: relative;
   z-index: 1;
+  animation: slideUp 0.5s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .auth-header {
@@ -60,20 +73,28 @@ const currentYear = computed(() => new Date().getFullYear());
   margin-bottom: 32px;
 }
 
-.auth-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: #303133;
-  margin: 0 0 8px;
+.auth-logo-wrapper {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 12px;
+  background: linear-gradient(135deg, #409eff 0%, #6366f1 100%);
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  box-shadow: 0 8px 24px rgba(64, 158, 255, 0.3);
+}
 
-  .title-icon {
-    font-size: 32px;
-    color: #409eff;
-  }
+.title-icon {
+  font-size: 36px;
+  color: #ffffff;
+}
+
+.auth-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: #303133;
+  margin: 0 0 6px;
 }
 
 .auth-subtitle {
@@ -89,5 +110,16 @@ const currentYear = computed(() => new Date().getFullYear());
   text-align: center;
   font-size: 12px;
   color: rgba(255, 255, 255, 0.7);
+}
+
+@media (max-width: 480px) {
+  .auth-container {
+    padding: 24px;
+    border-radius: 12px;
+  }
+
+  .auth-title {
+    font-size: 22px;
+  }
 }
 </style>

@@ -13,6 +13,7 @@
           placeholder="请输入用户名"
           :prefix-icon="User"
           clearable
+          autofocus
         />
       </el-form-item>
 
@@ -24,7 +25,13 @@
           :prefix-icon="Lock"
           show-password
           clearable
+          @keydown="checkCapsLock"
         />
+        <transition name="fade">
+          <span v-if="capsLockOn" class="caps-lock-warning">
+            <el-icon><Warning /></el-icon> 大写锁定已开启
+          </span>
+        </transition>
       </el-form-item>
 
       <el-form-item v-if="showVerifyCode" prop="code">
@@ -49,6 +56,9 @@
       </el-form-item>
 
       <el-form-item>
+        <div class="login-options">
+          <el-checkbox v-model="rememberMe">记住我</el-checkbox>
+        </div>
         <el-button
           type="primary"
           :loading="loading"
@@ -59,11 +69,15 @@
         </el-button>
       </el-form-item>
     </el-form>
+
+    <div class="login-footer">
+      <span>{{ currentTime }}</span>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted, onBeforeUnmount, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { User, Lock, Key } from '@element-plus/icons-vue';
@@ -77,6 +91,9 @@ const loginFormRef = ref(null);
 const loading = ref(false);
 const showVerifyCode = ref(false);
 const verifyCodeUrl = ref('');
+const capsLockOn = ref(false);
+const rememberMe = ref(false);
+const currentTime = ref('');
 
 const loginForm = reactive({
   username: '',
@@ -93,13 +110,30 @@ const loginRules = computed(() => ({
     : [],
 }));
 
+// Caps Lock 检测
+function checkCapsLock(e) {
+  capsLockOn.value = e.getModifierState('CapsLock');
+}
+
+// 当前时间
+let timeTimer = null;
+function updateTime() {
+  const now = new Date();
+  currentTime.value = now.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+}
+
 function refreshCode() {
-  // 添加时间戳防止缓存
   verifyCodeUrl.value = '/code?t=' + Date.now();
 }
 
 function onCodeImgError() {
-  // 验证码图片加载失败，隐藏验证码输入
   showVerifyCode.value = false;
   verifyCodeUrl.value = '';
 }
@@ -118,6 +152,13 @@ async function handleLogin() {
     await userStore.login(loginForm);
     ElMessage.success('登录成功');
 
+    // 记住用户名
+    if (rememberMe.value) {
+      localStorage.setItem('mw_remember_user', loginForm.username);
+    } else {
+      localStorage.removeItem('mw_remember_user');
+    }
+
     const redirect = route.query.redirect || '/dashboard';
     router.push(redirect);
   } catch (error) {
@@ -131,15 +172,51 @@ async function handleLogin() {
 }
 
 onMounted(() => {
-  // 加载验证码图片（图片加载成功表示接口可用）
   showVerifyCode.value = true;
   refreshCode();
+  updateTime();
+  timeTimer = setInterval(updateTime, 1000);
+
+  // 恢复记住的用户名
+  const savedUser = localStorage.getItem('mw_remember_user');
+  if (savedUser) {
+    loginForm.username = savedUser;
+    rememberMe.value = true;
+  }
+});
+
+onBeforeUnmount(() => {
+  if (timeTimer) clearInterval(timeTimer);
 });
 </script>
 
 <style lang="scss" scoped>
 .login-page {
   width: 100%;
+
+  .login-footer {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 12px;
+    color: #c0c4cc;
+  }
+}
+
+.caps-lock-warning {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #e6a23c;
+}
+
+.login-options {
+  margin-bottom: 12px;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .verify-code-row {
@@ -181,5 +258,15 @@ onMounted(() => {
   height: 44px;
   font-size: 16px;
   letter-spacing: 4px;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
