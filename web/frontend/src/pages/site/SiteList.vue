@@ -145,6 +145,7 @@
                   <el-dropdown-item command="domain">域名管理</el-dropdown-item>
                   <el-dropdown-item command="proxy">反向代理</el-dropdown-item>
                   <el-dropdown-item command="redirect">重定向</el-dropdown-item>
+                  <el-dropdown-item command="security">防盗链</el-dropdown-item>
                   <el-dropdown-item command="backup">备份</el-dropdown-item>
                   <el-dropdown-item command="log">日志</el-dropdown-item>
                   <el-dropdown-item command="config">配置文件</el-dropdown-item>
@@ -588,6 +589,37 @@
             </template>
           </el-dialog>
         </el-tab-pane>
+
+        <!-- 防盗链 -->
+        <el-tab-pane label="防盗链" name="security">
+          <div class="security-manage">
+            <el-form :model="securityForm" label-width="100px">
+              <el-form-item label="防盗链状态">
+                <el-switch v-model="securityForm.status" active-value="1" inactive-value="0" active-text="开启" inactive-text="关闭" />
+              </el-form-item>
+              <el-form-item label="允许域名">
+                <el-input
+                  v-model="securityForm.domains"
+                  type="textarea"
+                  :rows="4"
+                  placeholder="每行一个域名，如:&#10;example.com&#10;www.example.com"
+                />
+                <div class="form-tip">每行填写一个允许的域名，不需要带http://</div>
+              </el-form-item>
+              <el-form-item label="资源类型">
+                <el-input v-model="securityForm.fix" placeholder="如: jpg|jpeg|png|gif|bmp|zip|rar|mp4" style="width: 400px" />
+                <div class="form-tip">用 | 分隔多个文件扩展名</div>
+              </el-form-item>
+              <el-form-item label="响应空值">
+                <el-switch v-model="securityForm.none" active-value="1" inactive-value="0" active-text="开启" inactive-text="关闭" />
+                <div class="form-tip">开启后未匹配的请求返回空内容</div>
+              </el-form-item>
+              <el-form-item>
+                <el-button type="primary" @click="saveSecurity" :loading="securitySaving">保存</el-button>
+              </el-form-item>
+            </el-form>
+          </div>
+        </el-tab-pane>
       </el-tabs>
     </el-dialog>
 
@@ -672,7 +704,9 @@ import {
   addSiteType,
   removeSiteType,
   modifySiteTypeName,
-  setSiteType as apiSetSiteType
+  setSiteType as apiSetSiteType,
+  getSiteSecurity,
+  setSiteSecurity
 } from '@/api/index';
 
 const siteList = ref([]);
@@ -758,6 +792,10 @@ const redirectLoading = ref(false);
 const redirectFormVisible = ref(false);
 const redirectSaving = ref(false);
 const redirectForm = ref({ id: '', from: '', to: '', type: 'path', r_type: '301', keep_path: '0' });
+
+// 防盗链相关
+const securitySaving = ref(false);
+const securityForm = ref({ status: '0', domains: '', fix: 'jpg|jpeg|png|gif|bmp|zip|rar|mp4', none: '0' });
 
 const addSiteForm = ref({
   name: '',
@@ -986,6 +1024,10 @@ const handleCommand = (cmd, site) => {
       manageTab.value = 'redirect';
       fetchRedirectList();
       break;
+    case 'security':
+      manageTab.value = 'security';
+      fetchSecurity();
+      break;
     case 'delete':
       siteManageVisible.value = false;
       deleteSiteAction(site);
@@ -1026,6 +1068,45 @@ const handleManageTabChange = (tab) => {
     case 'redirect':
       fetchRedirectList();
       break;
+    case 'security':
+      fetchSecurity();
+      break;
+  }
+};
+
+// ==================== 防盗链设置 ====================
+
+const fetchSecurity = async () => {
+  try {
+    const res = await getSiteSecurity(currentSite.value.id);
+    if (res) {
+      securityForm.value = {
+        status: res.status ? '1' : '0',
+        domains: res.domains || '',
+        fix: res.fix || 'jpg|jpeg|png|gif|bmp|zip|rar|mp4',
+        none: res.none ? '1' : '0'
+      };
+    }
+  } catch {
+    // use defaults
+  }
+};
+
+const saveSecurity = async () => {
+  securitySaving.value = true;
+  try {
+    await setSiteSecurity(
+      currentSite.value.id,
+      securityForm.value.fix,
+      securityForm.value.domains,
+      securityForm.value.status,
+      securityForm.value.none
+    );
+    ElMessage.success('防盗链设置已保存');
+  } catch {
+    ElMessage.error('保存失败');
+  } finally {
+    securitySaving.value = false;
   }
 };
 
