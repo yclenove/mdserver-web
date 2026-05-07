@@ -240,7 +240,7 @@ import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import * as echarts from 'echarts';
 import { useAppStore } from '@/stores/app';
-import { getSystemInfo, getSystemNetwork, getDiskInfo } from '@/api/index';
+import { getSystemInfo, getSystemNetwork, getDiskInfo, getCpuIo, getDiskIo, getNetworkIo } from '@/api/index';
 
 const appStore = useAppStore();
 
@@ -607,12 +607,8 @@ async function refreshData() {
     pushHistory(timeLabels, label);
     pushHistory(cpuHistory, cpuUsage.value);
     pushHistory(memHistory, memoryUsage.value);
-    pushHistory(diskReadHistory, Math.floor(Math.random() * 30 + 10)); // Disk IO 暂无实时数据
-    pushHistory(diskWriteHistory, Math.floor(Math.random() * 20 + 5));
     pushHistory(netUpHistory, networkUp.value);
     pushHistory(netDownHistory, networkDown.value);
-
-    updateCharts();
 
     // 同步到 appStore
     await appStore.fetchSystemInfo().catch(() => {});
@@ -633,6 +629,42 @@ function parseSizeStr(str) {
   return Math.round(num * (multipliers[unit] || 1));
 }
 
+// 从后端获取历史IO数据
+async function fetchHistoricalData() {
+  try {
+    const [cpuIoRes, diskIoRes, netIoRes] = await Promise.all([
+      getCpuIo().catch(() => null),
+      getDiskIo().catch(() => null),
+      getNetworkIo().catch(() => null)
+    ]);
+
+    // 如果后端有历史数据，用它来初始化图表
+    if (cpuIoRes?.data && Array.isArray(cpuIoRes.data) && cpuIoRes.data.length > 0) {
+      cpuIoRes.data.forEach(item => {
+        const time = item.add_time ? item.add_time.split(' ')[1]?.substring(0, 5) : getTimeLabel();
+        pushHistory(timeLabels, time);
+        pushHistory(cpuHistory, parseFloat(item.cpu_io) || 0);
+      });
+    }
+
+    if (diskIoRes?.data && Array.isArray(diskIoRes.data) && diskIoRes.data.length > 0) {
+      diskIoRes.data.forEach(item => {
+        pushHistory(diskReadHistory, parseFloat(item.read_bytes) || 0);
+        pushHistory(diskWriteHistory, parseFloat(item.write_bytes) || 0);
+      });
+    }
+
+    if (netIoRes?.data && Array.isArray(netIoRes.data) && netIoRes.data.length > 0) {
+      netIoRes.data.forEach(item => {
+        pushHistory(netUpHistory, parseFloat(item.up) || 0);
+        pushHistory(netDownHistory, parseFloat(item.down) || 0);
+      });
+    }
+  } catch {
+    // 历史数据获取失败，使用实时数据
+  }
+}
+
 function handleResize() {
   if (cpuChart) cpuChart.resize();
   if (memoryChart) memoryChart.resize();
@@ -641,8 +673,8 @@ function handleResize() {
 }
 
 onMounted(async () => {
-  // 先获取数据
-  await refreshData();
+  // 先获取历史数据和实时数据
+  await Promise.all([refreshData(), fetchHistoricalData()]);
   await nextTick();
 
   // 初始化图表（使用已收集的历史数据）

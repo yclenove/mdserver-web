@@ -17,6 +17,21 @@ export function getSystemLoad() {
   return request({ url: '/system/get_load_average', method: 'get' });
 }
 
+// 获取磁盘IO历史数据
+export function getDiskIo(params = {}) {
+  return request({ url: '/system/get_disk_io', method: 'get', params });
+}
+
+// 获取CPU IO历史数据
+export function getCpuIo(params = {}) {
+  return request({ url: '/system/get_cpu_io', method: 'get', params });
+}
+
+// 获取网络IO历史数据
+export function getNetworkIo(params = {}) {
+  return request({ url: '/system/get_network_io', method: 'get', params });
+}
+
 // 获取磁盘信息
 export function getDiskInfo() {
   return request({ url: '/system/disk_info', method: 'post' });
