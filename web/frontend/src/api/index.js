@@ -81,10 +81,322 @@ export function stopSite(id) {
 }
 
 // 删除站点
-export function deleteSite(id) {
+export function deleteSite(id, path) {
   const data = new URLSearchParams();
   data.append('id', id);
-  return request({ url: '/site/del', method: 'post', data });
+  if (path) data.append('path', path);
+  return request({ url: '/site/delete', method: 'post', data });
+}
+
+// 获取站点域名列表
+export function getSiteDomains(id) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  return request({ url: '/site/get_site_domains', method: 'post', data });
+}
+
+// 添加站点域名
+export function addSiteDomain(id, siteName, domain) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  data.append('site_name', siteName);
+  data.append('domain', domain);
+  return request({ url: '/site/add_domain', method: 'post', data });
+}
+
+// 删除站点域名
+export function delSiteDomain(id, siteName, domain, port) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  data.append('site_name', siteName);
+  data.append('domain', domain);
+  data.append('port', port || '');
+  return request({ url: '/site/del_domain', method: 'post', data });
+}
+
+// 获取站点SSL证书信息
+export function getSiteSsl(siteName, sslType) {
+  const data = new URLSearchParams();
+  data.append('site_name', siteName);
+  data.append('ssl_type', sslType || '');
+  return request({ url: '/site/get_ssl', method: 'post', data });
+}
+
+// 设置站点SSL证书
+export function setSiteSsl(siteName, key, csr) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  data.append('key', key);
+  data.append('csr', csr);
+  return request({ url: '/site/set_ssl', method: 'post', data });
+}
+
+// 关闭站点SSL
+export function closeSiteSsl(siteName) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  return request({ url: '/site/close_ssl_conf', method: 'post', data });
+}
+
+// 强制HTTPS
+export function httpToHttps(siteName) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  return request({ url: '/site/http_to_https', method: 'post', data });
+}
+
+// 关闭强制HTTPS
+export function closeToHttps(siteName) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  return request({ url: '/site/close_to_https', method: 'post', data });
+}
+
+// 获取站点备份列表
+export function getSiteBackup(id, page, limit) {
+  const data = new URLSearchParams();
+  data.append('search', id);
+  data.append('p', page || 1);
+  data.append('limit', limit || 10);
+  return request({ url: '/site/get_backup', method: 'post', data });
+}
+
+// 创建站点备份
+export function createSiteBackup(id) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  return request({ url: '/site/to_backup', method: 'post', data });
+}
+
+// 删除站点备份
+export function delSiteBackup(id) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  return request({ url: '/site/del_backup', method: 'post', data });
+}
+
+// 获取站点访问日志
+export function getSiteLogs(siteName) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  return request({ url: '/site/get_logs', method: 'post', data });
+}
+
+// 获取站点错误日志
+export function getSiteErrorLogs(siteName) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  return request({ url: '/site/get_error_logs', method: 'post', data });
+}
+
+// 获取站点配置
+export function getSiteHostConf(siteName) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  return request({ url: '/site/get_host_conf', method: 'post', data });
+}
+
+// 保存站点配置
+export function saveSiteHostConf(path, dataContent, encoding) {
+  const data = new URLSearchParams();
+  data.append('path', path);
+  data.append('data', dataContent);
+  data.append('encoding', encoding || '');
+  return request({ url: '/site/save_host_conf', method: 'post', data });
+}
+
+// 设置站点路径
+export function setSitePath(id, path) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  data.append('path', path);
+  return request({ url: '/site/set_path', method: 'post', data });
+}
+
+// 设置站点备注
+export function setSiteRemark(id, ps) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  data.append('ps', ps);
+  return request({ url: '/site/set_ps', method: 'post', data });
+}
+
+// 设置站点到期时间
+export function setSiteEndDate(id, edate) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  data.append('edate', edate);
+  return request({ url: '/site/set_end_date', method: 'post', data });
+}
+
+// 获取站点PHP版本
+export function getSitePhpVersion(siteName) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  return request({ url: '/site/get_site_php_version', method: 'post', data });
+}
+
+// 设置站点PHP版本
+export function setSitePhpVersion(siteName, version) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  data.append('version', version);
+  return request({ url: '/site/set_php_version', method: 'post', data });
+}
+
+// 获取站点默认文档
+export function getSiteIndex(id) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  return request({ url: '/site/get_index', method: 'post', data });
+}
+
+// 设置站点默认文档
+export function setSiteIndex(id, index) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  data.append('index', index);
+  return request({ url: '/site/set_index', method: 'post', data });
+}
+
+// 获取站点流量限制
+export function getSiteLimitNet(id) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  return request({ url: '/site/get_limit_net', method: 'post', data });
+}
+
+// 设置站点流量限制
+export function setSiteLimitNet(id, perserver, perip, limitRate) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  data.append('perserver', perserver);
+  data.append('perip', perip);
+  data.append('limit_rate', limitRate);
+  return request({ url: '/site/set_limit_net', method: 'post', data });
+}
+
+// 关闭站点流量限制
+export function closeSiteLimitNet(id) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  return request({ url: '/site/close_limit_net', method: 'post', data });
+}
+
+// 设置站点密码访问
+export function setSiteHasPwd(id, username, password) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  data.append('username', username);
+  data.append('password', password);
+  return request({ url: '/site/set_has_pwd', method: 'post', data });
+}
+
+// 关闭站点密码访问
+export function closeSiteHasPwd(id) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  return request({ url: '/site/close_has_pwd', method: 'post', data });
+}
+
+// 获取站点重定向列表
+export function getSiteRedirect(siteName) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  return request({ url: '/site/get_redirect', method: 'post', data });
+}
+
+// 设置站点重定向
+export function setSiteRedirect(siteName, from, to, type, rType, keepPath) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  data.append('from', from);
+  data.append('to', to);
+  data.append('type', type || '');
+  data.append('r_type', rType || '');
+  data.append('keep_path', keepPath || '');
+  return request({ url: '/site/set_redirect', method: 'post', data });
+}
+
+// 删除站点重定向
+export function delSiteRedirect(siteName, id) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  data.append('id', id);
+  return request({ url: '/site/del_redirect', method: 'post', data });
+}
+
+// 获取站点代理列表
+export function getSiteProxyList(siteName) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  return request({ url: '/site/get_proxy_list', method: 'post', data });
+}
+
+// 设置站点代理
+export function setSiteProxy(params) {
+  const data = new URLSearchParams();
+  data.append('siteName', params.siteName || '');
+  data.append('from', params.from || '');
+  data.append('to', params.to || '');
+  data.append('host', params.host || '');
+  data.append('name', params.name || '');
+  data.append('open_proxy', params.open_proxy || '');
+  data.append('open_cors', params.open_cors || '');
+  data.append('open_http3', params.open_http3 || '');
+  data.append('open_cache', params.open_cache || '');
+  data.append('cache_time', params.cache_time || '');
+  if (params.id) data.append('id', params.id);
+  return request({ url: '/site/set_proxy', method: 'post', data });
+}
+
+// 删除站点代理
+export function delSiteProxy(siteName, id) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  data.append('id', id);
+  return request({ url: '/site/del_proxy', method: 'post', data });
+}
+
+// 获取防盗链信息
+export function getSiteSecurity(id) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  return request({ url: '/site/get_security', method: 'post', data });
+}
+
+// 设置防盗链
+export function setSiteSecurity(id, fix, domains, status, none) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  data.append('fix', fix || '');
+  data.append('domains', domains || '');
+  data.append('status', status || '');
+  data.append('none', none || '');
+  return request({ url: '/site/set_security', method: 'post', data });
+}
+
+// 获取Rewrite配置
+export function getSiteRewriteConf(siteName) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  return request({ url: '/site/get_rewrite_conf', method: 'post', data });
+}
+
+// 保存Rewrite配置
+export function saveSiteRewrite(path, dataContent, encoding) {
+  const data = new URLSearchParams();
+  data.append('path', path);
+  data.append('data', dataContent);
+  data.append('encoding', encoding || '');
+  return request({ url: '/site/set_rewrite', method: 'post', data });
+}
+
+// 日志开关
+export function toggleSiteLogs(id) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  return request({ url: '/site/logs_open', method: 'post', data });
 }
 
 // ==================== 防火墙 ====================
