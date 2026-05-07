@@ -203,6 +203,14 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import {
+  getFirewallList,
+  addAcceptPort,
+  delAcceptPort,
+  getSshInfo,
+  setSshPort,
+  setPingStatus
+} from '@/api/index';
 
 const activeTab = ref('ports');
 const loading = ref(false);
@@ -270,10 +278,17 @@ const showAddIP = () => {
 
 const submitPortRule = async () => {
   try {
+    await addAcceptPort({
+      port: portForm.value.port,
+      protocol: portForm.value.protocol,
+      ps: portForm.value.ps,
+      type: portForm.value.strategy === 'accept' ? 'accept' : 'drop'
+    });
     ElMessage.success('端口规则添加成功');
     portDialogVisible.value = false;
+    fetchFirewallData();
   } catch (error) {
-    ElMessage.error('添加失败');
+    console.error('添加端口规则失败:', error);
   }
 };
 
@@ -289,7 +304,9 @@ const submitIPRule = async () => {
 const deletePortRule = async (rule) => {
   try {
     await ElMessageBox.confirm('确定要删除这条规则吗？', '删除确认', { type: 'warning' });
+    await delAcceptPort(rule.id, rule.port, rule.protocol);
     ElMessage.success('删除成功');
+    fetchFirewallData();
   } catch (error) {
     if (error !== 'cancel') ElMessage.error('删除失败');
   }
@@ -309,8 +326,13 @@ const blockIP = (log) => {
   ipDialogVisible.value = true;
 };
 
-const saveSSHConfig = () => {
-  ElMessage.success('SSH配置已保存');
+const saveSSHConfig = async () => {
+  try {
+    await setSshPort(sshConfig.value.port);
+    ElMessage.success('SSH配置已保存');
+  } catch (error) {
+    console.error('保存SSH配置失败:', error);
+  }
 };
 
 const restartSSH = async () => {
@@ -322,8 +344,37 @@ const restartSSH = async () => {
   }
 };
 
+const fetchFirewallData = async () => {
+  loading.value = true;
+  try {
+    const res = await getFirewallList({ page: 1, limit: 100 });
+    if (res && res.data) {
+      portRules.value = res.data || [];
+    }
+  } catch (error) {
+    console.error('获取防火墙列表失败:', error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const fetchSshInfo = async () => {
+  try {
+    const res = await getSshInfo();
+    if (res) {
+      sshConfig.value.port = res.port || '22';
+      sshConfig.value.rootLogin = res.is_root === 'yes' || res.is_root === true;
+      sshConfig.value.passwordAuth = res.pass_work === 'yes' || res.pass_work === true;
+      sshConfig.value.pubkeyAuth = res.pubkey_work === 'yes' || res.pubkey_work === true;
+    }
+  } catch (error) {
+    console.error('获取SSH信息失败:', error);
+  }
+};
+
 onMounted(() => {
-  // 初始化数据
+  fetchFirewallData();
+  fetchSshInfo();
 });
 </script>
 

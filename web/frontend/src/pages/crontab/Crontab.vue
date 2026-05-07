@@ -201,6 +201,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import {
+  getCrontabList,
+  deleteCrontab as apiDeleteCrontab,
+  setCrontabStatus,
+  getCrontabLogs
+} from '@/api/index';
 
 const crontabList = ref([]);
 const loading = ref(false);
@@ -261,11 +267,13 @@ const filteredCrontabList = computed(() => {
 const fetchCrontabs = async () => {
   loading.value = true;
   try {
-    // 模拟数据
-    crontabList.value = [];
-    total.value = 0;
+    const res = await getCrontabList({ page: currentPage.value, limit: pageSize.value });
+    if (res && res.data) {
+      crontabList.value = res.data || [];
+      total.value = res.data.length || 0;
+    }
   } catch (error) {
-    ElMessage.error('获取计划任务列表失败');
+    console.error('获取计划任务列表失败:', error);
   } finally {
     loading.value = false;
   }
@@ -366,8 +374,14 @@ const submitCrontab = async () => {
 };
 
 const toggleStatus = async (row) => {
-  const action = row.status === 1 ? '启用' : '暂停';
-  ElMessage.success(`任务已${action}`);
+  try {
+    await setCrontabStatus(row.id);
+    const action = row.status === 1 ? '启用' : '暂停';
+    ElMessage.success(`任务已${action}`);
+    fetchCrontabs();
+  } catch (error) {
+    console.error('切换任务状态失败:', error);
+  }
 };
 
 const runTask = async (row) => {
@@ -379,14 +393,24 @@ const runTask = async (row) => {
   }
 };
 
-const viewLogs = (row) => {
-  taskLogs.value = [];
+const viewLogs = async (row) => {
+  try {
+    const res = await getCrontabLogs(row.id);
+    if (res && res.data) {
+      taskLogs.value = Array.isArray(res.data) ? res.data : [];
+    } else {
+      taskLogs.value = [];
+    }
+  } catch (error) {
+    taskLogs.value = [];
+  }
   logDialogVisible.value = true;
 };
 
 const deleteCrontab = async (row) => {
   try {
     await ElMessageBox.confirm(`确定要删除任务 "${row.name}" 吗？`, '删除确认', { type: 'warning' });
+    await apiDeleteCrontab(row.id);
     ElMessage.success('删除成功');
     fetchCrontabs();
   } catch (error) {

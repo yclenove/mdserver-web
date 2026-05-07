@@ -8,7 +8,7 @@
 # Author: midoks <midoks@163.com>
 # ---------------------------------------------------------------------------------
 
-from utils.system import monitor
+from utils.system.monitor import monitor
 
 
 def init_db_system():

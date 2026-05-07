@@ -21,7 +21,9 @@ from admin.user_login_check import panel_login_required
 
 import core.mw as mw
 import thisdb
+import config
 import utils.config as utils_config
+import utils.system as sys_utils
 
 
 # 默认页面
@@ -273,3 +275,32 @@ def set_port():
         mw.restartMw()
 
     return mw.returnData(True, "端口保存成功!")
+
+
+# 获取面板设置信息
+@blueprint.route("/get_panel_settings", endpoint="get_panel_settings", methods=["POST"])
+@panel_login_required
+def get_panel_settings():
+    data = {}
+    data["title"] = thisdb.getOption("title", default="MW面板")
+    data["port"] = str(mw.getHostPort())
+    data["admin_path"] = thisdb.getOption("admin_path", default="")
+    data["site_path"] = thisdb.getOption("site_path", default="/www/wwwroot")
+    data["backup_path"] = thisdb.getOption("backup_path", default="/www/backup")
+    data["server_ip"] = thisdb.getOption("server_ip", default="")
+    data["debug"] = thisdb.getOption("debug", default="close")
+    data["admin_close"] = thisdb.getOption("admin_close", default="no")
+    data["unauthorized_status"] = thisdb.getOption("unauthorized_status", default="403")
+    data["version"] = config.APP_VERSION
+    try:
+        data["time"] = sys_utils.getBootTime()
+    except Exception:
+        data["time"] = ""
+
+    try:
+        basic_auth = thisdb.getOptionByJson("basic_auth", default={"open": False})
+        data["basic_auth"] = basic_auth
+    except Exception:
+        data["basic_auth"] = {"open": False}
+
+    return data

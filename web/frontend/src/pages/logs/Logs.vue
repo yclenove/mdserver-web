@@ -176,6 +176,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { getLogList, clearLogs as apiClearLogs } from '@/api/index';
 
 const logList = ref([]);
 const loading = ref(false);
@@ -195,22 +196,28 @@ const sortOrder = ref('');
 let autoRefreshTimer = null;
 
 const stats = computed(() => {
-  const total = logList.value.length;
+  const totalVal = logList.value.length;
   const today = new Date().toISOString().split('T')[0];
   const todayLogs = logList.value.filter(l => l.add_time && l.add_time.startsWith(today)).length;
   const errors = logList.value.filter(l => l.type === 'error' || (l.log && l.log.toLowerCase().includes('error'))).length;
   const warnings = logList.value.filter(l => l.type === 'warning' || (l.log && l.log.toLowerCase().includes('warning'))).length;
-  return { total, today: todayLogs, errors, warnings };
+  return { total: totalVal, today: todayLogs, errors, warnings };
 });
 
 const fetchLogs = async () => {
   loading.value = true;
   try {
-    // 模拟数据 - 实际应调用 API
-    logList.value = [];
-    total.value = 0;
+    const res = await getLogList({
+      page: currentPage.value,
+      limit: pageSize.value,
+      search: searchQuery.value
+    });
+    if (res && res.data) {
+      logList.value = res.data || [];
+      total.value = res.data.length || 0;
+    }
   } catch (error) {
-    ElMessage.error('获取日志列表失败');
+    console.error('获取日志列表失败:', error);
   } finally {
     loading.value = false;
   }
@@ -321,6 +328,7 @@ const clearLogs = async () => {
       confirmButtonText: '确定清空',
       cancelButtonText: '取消'
     });
+    await apiClearLogs();
     ElMessage.success('日志已清空');
     fetchLogs();
   } catch (error) {

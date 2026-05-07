@@ -236,6 +236,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { getSiteList, addSite, startSite, stopSite, deleteSite as apiDeleteSite } from '@/api/index';
 
 const siteList = ref([]);
 const loading = ref(false);
@@ -303,11 +304,19 @@ const filteredSiteList = computed(() => {
 const fetchSites = async () => {
   loading.value = true;
   try {
-    // 模拟数据 - 实际应调用 API
-    siteList.value = [];
-    total.value = 0;
+    const res = await getSiteList({
+      page: currentPage.value,
+      limit: pageSize.value,
+      type_id: typeFilter.value,
+      search: searchQuery.value,
+      order: sortProp.value ? `${sortProp.value} ${sortOrder.value || 'desc'}` : ''
+    });
+    if (res && res.data) {
+      siteList.value = res.data || [];
+      total.value = res.data.length || 0;
+    }
   } catch (error) {
-    ElMessage.error('获取网站列表失败');
+    console.error('获取网站列表失败:', error);
   } finally {
     loading.value = false;
   }
@@ -367,11 +376,14 @@ const browsePath = () => {
 const submitAddSite = async () => {
   submitting.value = true;
   try {
-    ElMessage.success('站点添加成功');
-    addSiteVisible.value = false;
-    fetchSites();
+    const res = await addSite(addSiteForm.value);
+    if (res) {
+      ElMessage.success('站点添加成功');
+      addSiteVisible.value = false;
+      fetchSites();
+    }
   } catch (error) {
-    ElMessage.error('添加失败');
+    console.error('添加站点失败:', error);
   } finally {
     submitting.value = false;
   }
@@ -385,6 +397,11 @@ const toggleSite = async (site) => {
   const action = site.status === 1 ? '停止' : '启动';
   try {
     await ElMessageBox.confirm(`确定要${action} ${site.name} 吗？`, '确认');
+    if (site.status === 1) {
+      await stopSite(site.id);
+    } else {
+      await startSite(site.id);
+    }
     ElMessage.success(`${action}成功`);
     fetchSites();
   } catch (error) {
@@ -419,6 +436,7 @@ const deleteSite = async (site) => {
       confirmButtonText: '确定删除',
       cancelButtonText: '取消'
     });
+    await apiDeleteSite(site.id);
     ElMessage.success('删除成功');
     fetchSites();
   } catch (error) {
