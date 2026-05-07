@@ -779,3 +779,118 @@ export function createFile(path) {
   data.append('path', path);
   return request({ url: '/files/create_file', method: 'post', data });
 }
+
+// ==================== 站点代理管理 ====================
+
+// 获取代理列表
+export function getProxyList(siteName) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  return request({ url: '/site/get_proxy_list', method: 'post', data });
+}
+
+// 设置代理
+export function setProxy({ siteName, from, to, host, name, open_proxy, open_cors, open_http3, open_cache, cache_time, id }) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  if (from) data.append('from', from);
+  if (to) data.append('to', to);
+  if (host) data.append('host', host);
+  if (name) data.append('name', name);
+  if (open_proxy) data.append('open_proxy', open_proxy);
+  if (open_cors) data.append('open_cors', open_cors);
+  if (open_http3) data.append('open_http3', open_http3);
+  if (open_cache) data.append('open_cache', open_cache);
+  if (cache_time) data.append('cache_time', cache_time);
+  if (id) data.append('id', id);
+  return request({ url: '/site/set_proxy', method: 'post', data });
+}
+
+// 设置代理状态
+export function setProxyStatus(siteName, id, status) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  data.append('id', id);
+  data.append('status', status);
+  return request({ url: '/site/set_proxy_status', method: 'post', data });
+}
+
+// 获取代理配置
+export function getProxyConf(siteName, id) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  data.append('id', id);
+  return request({ url: '/site/get_proxy_conf', method: 'post', data });
+}
+
+// 保存代理配置
+export function saveProxyConf(siteName, id, config) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  data.append('id', id);
+  data.append('config', config);
+  return request({ url: '/site/save_proxy_conf', method: 'post', data });
+}
+
+// 删除代理
+export function delProxy(siteName, id) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  data.append('id', id);
+  return request({ url: '/site/del_proxy', method: 'post', data });
+}
+
+// ==================== 站点重定向管理 ====================
+
+// 获取重定向列表
+export function getRedirect(siteName) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  return request({ url: '/site/get_redirect', method: 'post', data });
+}
+
+// 设置重定向
+export function setRedirect({ siteName, from, to, type, r_type, keep_path }) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  if (from) data.append('from', from);
+  if (to) data.append('to', to);
+  if (type) data.append('type', type);
+  if (r_type) data.append('r_type', r_type);
+  if (keep_path) data.append('keep_path', keep_path);
+  return request({ url: '/site/set_redirect', method: 'post', data });
+}
+
+// 设置重定向状态
+export function setRedirectStatus(siteName, id, status) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  data.append('id', id);
+  data.append('status', status);
+  return request({ url: '/site/set_redirect_status', method: 'post', data });
+}
+
+// 获取重定向配置
+export function getRedirectConf(siteName, id) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  data.append('id', id);
+  return request({ url: '/site/get_redirect_conf', method: 'post', data });
+}
+
+// 保存重定向配置
+export function saveRedirectConf(siteName, id, config) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  data.append('id', id);
+  data.append('config', config);
+  return request({ url: '/site/save_redirect_conf', method: 'post', data });
+}
+
+// 删除重定向
+export function delRedirect(siteName, id) {
+  const data = new URLSearchParams();
+  data.append('siteName', siteName);
+  data.append('id', id);
+  return request({ url: '/site/del_redirect', method: 'post', data });
+}

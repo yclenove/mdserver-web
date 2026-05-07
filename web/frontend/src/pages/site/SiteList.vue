@@ -139,6 +139,8 @@
                 <el-dropdown-menu>
                   <el-dropdown-item command="ssl">SSL 证书</el-dropdown-item>
                   <el-dropdown-item command="domain">域名管理</el-dropdown-item>
+                  <el-dropdown-item command="proxy">反向代理</el-dropdown-item>
+                  <el-dropdown-item command="redirect">重定向</el-dropdown-item>
                   <el-dropdown-item command="backup">备份</el-dropdown-item>
                   <el-dropdown-item command="log">日志</el-dropdown-item>
                   <el-dropdown-item command="config">配置文件</el-dropdown-item>
@@ -452,6 +454,136 @@
             </el-form>
           </div>
         </el-tab-pane>
+
+        <el-tab-pane label="反向代理" name="proxy">
+          <div class="proxy-manage">
+            <div class="section-header">
+              <span>反向代理列表</span>
+              <el-button type="primary" size="small" @click="showAddProxy">添加代理</el-button>
+            </div>
+            <el-table :data="proxyList" v-loading="proxyLoading" stripe size="small">
+              <el-table-column prop="name" label="名称" width="120" />
+              <el-table-column prop="from" label="代理路径" width="150" />
+              <el-table-column prop="to" label="目标地址" min-width="200" show-overflow-tooltip />
+              <el-table-column prop="host" label="域名" width="150" />
+              <el-table-column label="状态" width="80">
+                <template #default="{ row }">
+                  <el-tag :type="row.open_proxy === '1' ? 'success' : 'info'" size="small">
+                    {{ row.open_proxy === '1' ? '启用' : '禁用' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="180" fixed="right">
+                <template #default="{ row }">
+                  <el-button type="primary" link size="small" @click="editProxy(row)">编辑</el-button>
+                  <el-button type="warning" link size="small" @click="toggleProxyStatus(row)">
+                    {{ row.open_proxy === '1' ? '禁用' : '启用' }}
+                  </el-button>
+                  <el-button type="danger" link size="small" @click="deleteProxy(row)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+
+          <!-- 添加/编辑代理对话框 -->
+          <el-dialog v-model="proxyFormVisible" :title="proxyForm.id ? '编辑代理' : '添加代理'" width="550px" append-to-body>
+            <el-form :model="proxyForm" label-width="100px">
+              <el-form-item label="代理名称">
+                <el-input v-model="proxyForm.name" placeholder="代理名称" />
+              </el-form-item>
+              <el-form-item label="代理路径">
+                <el-input v-model="proxyForm.from" placeholder="例如: /api" />
+              </el-form-item>
+              <el-form-item label="目标地址">
+                <el-input v-model="proxyForm.to" placeholder="例如: http://127.0.0.1:8080" />
+              </el-form-item>
+              <el-form-item label="域名">
+                <el-input v-model="proxyForm.host" placeholder="发送到目标的域名（可选）" />
+              </el-form-item>
+              <el-form-item label="启用代理">
+                <el-switch v-model="proxyForm.open_proxy" active-value="1" inactive-value="0" />
+              </el-form-item>
+              <el-form-item label="开启CORS">
+                <el-switch v-model="proxyForm.open_cors" active-value="1" inactive-value="0" />
+              </el-form-item>
+              <el-form-item label="开启缓存">
+                <el-switch v-model="proxyForm.open_cache" active-value="1" inactive-value="0" />
+              </el-form-item>
+              <el-form-item label="缓存时间" v-if="proxyForm.open_cache === '1'">
+                <el-input v-model="proxyForm.cache_time" placeholder="秒" style="width: 120px" />
+              </el-form-item>
+            </el-form>
+            <template #footer>
+              <el-button @click="proxyFormVisible = false">取消</el-button>
+              <el-button type="primary" @click="saveProxy" :loading="proxySaving">保存</el-button>
+            </template>
+          </el-dialog>
+        </el-tab-pane>
+
+        <el-tab-pane label="重定向" name="redirect">
+          <div class="redirect-manage">
+            <div class="section-header">
+              <span>重定向列表</span>
+              <el-button type="primary" size="small" @click="showAddRedirect">添加重定向</el-button>
+            </div>
+            <el-table :data="redirectList" v-loading="redirectLoading" stripe size="small">
+              <el-table-column prop="from" label="来源路径" width="150" />
+              <el-table-column prop="to" label="目标地址" min-width="200" show-overflow-tooltip />
+              <el-table-column label="类型" width="100">
+                <template #default="{ row }">
+                  <el-tag size="small">{{ row.type === 'path' ? '路径' : '域名' }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="状态" width="80">
+                <template #default="{ row }">
+                  <el-tag :type="row.status === '1' || row.status === 1 ? 'success' : 'info'" size="small">
+                    {{ row.status === '1' || row.status === 1 ? '启用' : '禁用' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="180" fixed="right">
+                <template #default="{ row }">
+                  <el-button type="primary" link size="small" @click="editRedirect(row)">编辑</el-button>
+                  <el-button type="warning" link size="small" @click="toggleRedirectStatus(row)">
+                    {{ row.status === '1' || row.status === 1 ? '禁用' : '启用' }}
+                  </el-button>
+                  <el-button type="danger" link size="small" @click="deleteRedirect(row)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+
+          <!-- 添加/编辑重定向对话框 -->
+          <el-dialog v-model="redirectFormVisible" :title="redirectForm.id ? '编辑重定向' : '添加重定向'" width="550px" append-to-body>
+            <el-form :model="redirectForm" label-width="100px">
+              <el-form-item label="重定向类型">
+                <el-radio-group v-model="redirectForm.type">
+                  <el-radio value="path">路径</el-radio>
+                  <el-radio value="domain">域名</el-radio>
+                </el-radio-group>
+              </el-form-item>
+              <el-form-item label="来源路径">
+                <el-input v-model="redirectForm.from" :placeholder="redirectForm.type === 'domain' ? '例如: old.example.com' : '例如: /old-path'" />
+              </el-form-item>
+              <el-form-item label="目标地址">
+                <el-input v-model="redirectForm.to" placeholder="例如: https://new.example.com" />
+              </el-form-item>
+              <el-form-item label="HTTP状态码">
+                <el-select v-model="redirectForm.r_type">
+                  <el-option label="301 永久重定向" value="301" />
+                  <el-option label="302 临时重定向" value="302" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="保留路径">
+                <el-switch v-model="redirectForm.keep_path" active-value="1" inactive-value="0" />
+              </el-form-item>
+            </el-form>
+            <template #footer>
+              <el-button @click="redirectFormVisible = false">取消</el-button>
+              <el-button type="primary" @click="saveRedirectAction" :loading="redirectSaving">保存</el-button>
+            </template>
+          </el-dialog>
+        </el-tab-pane>
       </el-tabs>
     </el-dialog>
   </div>
@@ -494,7 +626,15 @@ import {
   setSiteHasPwd,
   closeSiteHasPwd,
   getSiteRewriteConf,
-  saveSiteRewrite
+  saveSiteRewrite,
+  getProxyList,
+  setProxy,
+  setProxyStatus as apiSetProxyStatus,
+  delProxy,
+  getRedirect,
+  setRedirect,
+  setRedirectStatus as apiSetRedirectStatus,
+  delRedirect
 } from '@/api/index';
 
 const siteList = ref([]);
@@ -564,6 +704,20 @@ const limitLoading = ref(false);
 
 // 密码访问
 const pwdForm = ref({ username: '', password: '' });
+
+// 反向代理
+const proxyList = ref([]);
+const proxyLoading = ref(false);
+const proxyFormVisible = ref(false);
+const proxySaving = ref(false);
+const proxyForm = ref({ id: '', name: '', from: '', to: '', host: '', open_proxy: '1', open_cors: '0', open_http3: '0', open_cache: '0', cache_time: '' });
+
+// 重定向
+const redirectList = ref([]);
+const redirectLoading = ref(false);
+const redirectFormVisible = ref(false);
+const redirectSaving = ref(false);
+const redirectForm = ref({ id: '', from: '', to: '', type: 'path', r_type: '301', keep_path: '0' });
 
 const addSiteForm = ref({
   name: '',
@@ -782,6 +936,14 @@ const handleCommand = (cmd, site) => {
       manageTab.value = 'config';
       fetchSiteConfig();
       break;
+    case 'proxy':
+      manageTab.value = 'proxy';
+      fetchProxyList();
+      break;
+    case 'redirect':
+      manageTab.value = 'redirect';
+      fetchRedirectList();
+      break;
     case 'delete':
       siteManageVisible.value = false;
       deleteSiteAction(site);
@@ -815,6 +977,12 @@ const handleManageTabChange = (tab) => {
       break;
     case 'limit':
       fetchLimitNet();
+      break;
+    case 'proxy':
+      fetchProxyList();
+      break;
+    case 'redirect':
+      fetchRedirectList();
       break;
   }
 };
@@ -1196,6 +1364,164 @@ const disablePwdProtect = async () => {
   }
 };
 
+// ==================== 反向代理 ====================
+
+const fetchProxyList = async () => {
+  proxyLoading.value = true;
+  try {
+    const res = await getProxyList(currentSite.value.name);
+    proxyList.value = res.data || [];
+  } catch {
+    proxyList.value = [];
+  } finally {
+    proxyLoading.value = false;
+  }
+};
+
+const showAddProxy = () => {
+  proxyForm.value = { id: '', name: '', from: '/', to: 'http://127.0.0.1:8080', host: '', open_proxy: '1', open_cors: '0', open_http3: '0', open_cache: '0', cache_time: '' };
+  proxyFormVisible.value = true;
+};
+
+const editProxy = (row) => {
+  proxyForm.value = {
+    id: row.id || '',
+    name: row.name || '',
+    from: row.from || '',
+    to: row.to || '',
+    host: row.host || '',
+    open_proxy: row.open_proxy || '0',
+    open_cors: row.open_cors || '0',
+    open_http3: row.open_http3 || '0',
+    open_cache: row.open_cache || '0',
+    cache_time: row.cache_time || '',
+  };
+  proxyFormVisible.value = true;
+};
+
+const saveProxy = async () => {
+  proxySaving.value = true;
+  try {
+    await setProxy({
+      siteName: currentSite.value.name,
+      from: proxyForm.value.from,
+      to: proxyForm.value.to,
+      host: proxyForm.value.host,
+      name: proxyForm.value.name,
+      open_proxy: proxyForm.value.open_proxy,
+      open_cors: proxyForm.value.open_cors,
+      open_http3: proxyForm.value.open_http3,
+      open_cache: proxyForm.value.open_cache,
+      cache_time: proxyForm.value.cache_time,
+      id: proxyForm.value.id,
+    });
+    ElMessage.success(proxyForm.value.id ? '代理已更新' : '代理已添加');
+    proxyFormVisible.value = false;
+    fetchProxyList();
+  } catch (e) {
+    ElMessage.error('操作失败');
+  } finally {
+    proxySaving.value = false;
+  }
+};
+
+const toggleProxyStatus = async (row) => {
+  try {
+    const newStatus = row.open_proxy === '1' ? '0' : '1';
+    await apiSetProxyStatus(currentSite.value.name, row.id, newStatus);
+    ElMessage.success('状态已更新');
+    fetchProxyList();
+  } catch {
+    ElMessage.error('操作失败');
+  }
+};
+
+const deleteProxy = async (row) => {
+  try {
+    await ElMessageBox.confirm('确定要删除此代理规则吗？', '确认删除', { type: 'warning' });
+    await delProxy(currentSite.value.name, row.id);
+    ElMessage.success('已删除');
+    fetchProxyList();
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('删除失败');
+  }
+};
+
+// ==================== 重定向 ====================
+
+const fetchRedirectList = async () => {
+  redirectLoading.value = true;
+  try {
+    const res = await getRedirect(currentSite.value.name);
+    redirectList.value = res.data || [];
+  } catch {
+    redirectList.value = [];
+  } finally {
+    redirectLoading.value = false;
+  }
+};
+
+const showAddRedirect = () => {
+  redirectForm.value = { id: '', from: '', to: '', type: 'path', r_type: '301', keep_path: '0' };
+  redirectFormVisible.value = true;
+};
+
+const editRedirect = (row) => {
+  redirectForm.value = {
+    id: row.id || '',
+    from: row.from || '',
+    to: row.to || '',
+    type: row.type || 'path',
+    r_type: row.r_type || '301',
+    keep_path: row.keep_path || '0',
+  };
+  redirectFormVisible.value = true;
+};
+
+const saveRedirectAction = async () => {
+  redirectSaving.value = true;
+  try {
+    await setRedirect({
+      siteName: currentSite.value.name,
+      from: redirectForm.value.from,
+      to: redirectForm.value.to,
+      type: redirectForm.value.type,
+      r_type: redirectForm.value.r_type,
+      keep_path: redirectForm.value.keep_path,
+    });
+    ElMessage.success(redirectForm.value.id ? '重定向已更新' : '重定向已添加');
+    redirectFormVisible.value = false;
+    fetchRedirectList();
+  } catch (e) {
+    ElMessage.error('操作失败');
+  } finally {
+    redirectSaving.value = false;
+  }
+};
+
+const toggleRedirectStatus = async (row) => {
+  try {
+    const currentStatus = row.status === '1' || row.status === 1;
+    const newStatus = currentStatus ? '0' : '1';
+    await apiSetRedirectStatus(currentSite.value.name, row.id, newStatus);
+    ElMessage.success('状态已更新');
+    fetchRedirectList();
+  } catch {
+    ElMessage.error('操作失败');
+  }
+};
+
+const deleteRedirect = async (row) => {
+  try {
+    await ElMessageBox.confirm('确定要删除此重定向规则吗？', '确认删除', { type: 'warning' });
+    await delRedirect(currentSite.value.name, row.id);
+    ElMessage.success('已删除');
+    fetchRedirectList();
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('删除失败');
+  }
+};
+
 // ==================== 删除站点 ====================
 
 const deleteSiteAction = async (site) => {
@@ -1414,6 +1740,17 @@ onMounted(() => fetchSites());
     margin-left: 8px;
     font-size: 12px;
     color: #909399;
+  }
+
+  .proxy-manage,
+  .redirect-manage {
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
   }
 }
 </style>

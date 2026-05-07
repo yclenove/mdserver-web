@@ -36,8 +36,8 @@
         <el-button :icon="FolderAdd" size="small" @click="showCreateDialog('dir')">
           新建目录
         </el-button>
-        <el-button :icon="Upload" size="small" disabled>
-          上传
+        <el-button :icon="Download" size="small" @click="showRemoteDownloadDialog">
+          远程下载
         </el-button>
         <el-button
           :icon="CopyDocument"
@@ -64,6 +64,13 @@
           权限
         </el-button>
         <el-button
+          :disabled="selectedFiles.length < 1"
+          size="small"
+          @click="showZipDialog"
+        >
+          压缩
+        </el-button>
+        <el-button
           type="danger"
           :icon="Delete"
           size="small"
@@ -74,6 +81,7 @@
         </el-button>
       </div>
       <div class="toolbar-right">
+        <el-checkbox v-model="showHidden" @change="refreshList" size="small">显示隐藏文件</el-checkbox>
         <el-input
           v-model="searchText"
           placeholder="搜索文件名..."
@@ -126,7 +134,7 @@
             <span>{{ formatTime(row.mtime) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="250" fixed="right">
+        <el-table-column label="操作" width="310" fixed="right">
           <template #default="{ row }">
             <el-button
               v-if="!row.isdir"
@@ -142,12 +150,24 @@
               type="success"
               link
               size="small"
-              @click="downloadFile(row)"
+              @click="downloadFileLocal(row)"
             >
               下载
             </el-button>
+            <el-button
+              v-if="isArchiveFile(row.name)"
+              type="warning"
+              link
+              size="small"
+              @click="showUnzipDialog(row)"
+            >
+              解压
+            </el-button>
             <el-button type="primary" link size="small" @click="showRenameDialog(row)">
               重命名
+            </el-button>
+            <el-button type="info" link size="small" @click="showDirSize(row)" v-if="row.isdir">
+              大小
             </el-button>
             <el-button type="warning" link size="small" @click="showPermissionsDialog(row)">
               权限
@@ -247,6 +267,68 @@
         <el-button type="primary" @click="confirmBatchMove" :loading="batchLoading">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 压缩对话框 -->
+    <el-dialog v-model="zipDialogVisible" title="压缩文件" width="500px">
+      <el-form :model="zipForm" label-width="100px">
+        <el-form-item label="待压缩文件">
+          <div class="selected-files-list">
+            <el-tag v-for="file in selectedFiles" :key="file.name" size="small" class="file-tag">
+              {{ file.name }}
+            </el-tag>
+          </div>
+        </el-form-item>
+        <el-form-item label="压缩格式">
+          <el-select v-model="zipForm.type">
+            <el-option label=".tar.gz" value="tar_gz" />
+            <el-option label=".zip" value="zip" />
+            <el-option label=".tar.bz2" value="tar_bz2" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="压缩文件名">
+          <el-input v-model="zipForm.dfile" placeholder="例如: backup.tar.gz" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="zipDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmZip" :loading="zipLoading">开始压缩</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 解压对话框 -->
+    <el-dialog v-model="unzipDialogVisible" title="解压文件" width="450px">
+      <el-form :model="unzipForm" label-width="100px">
+        <el-form-item label="压缩文件">
+          <el-input :value="unzipForm.sfile" disabled />
+        </el-form-item>
+        <el-form-item label="解压到">
+          <el-input v-model="unzipForm.dfile" placeholder="解压目标路径" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="unzipDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmUnzip" :loading="zipLoading">开始解压</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 远程下载对话框 -->
+    <el-dialog v-model="remoteDownloadVisible" title="远程下载" width="500px">
+      <el-form :model="remoteDownloadForm" label-width="100px">
+        <el-form-item label="下载地址">
+          <el-input v-model="remoteDownloadForm.url" placeholder="请输入文件URL" />
+        </el-form-item>
+        <el-form-item label="保存路径">
+          <el-input v-model="remoteDownloadForm.path" placeholder="保存到目录" />
+        </el-form-item>
+        <el-form-item label="文件名">
+          <el-input v-model="remoteDownloadForm.filename" placeholder="保存文件名（可选）" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="remoteDownloadVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmRemoteDownload" :loading="remoteDownloadLoading">开始下载</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -259,7 +341,7 @@ import {
   FolderOpened, Folder, Document, Picture, VideoPlay,
   Headset, Files, List, Grid, CopyDocument, Rank, Lock, Download,
 } from '@element-plus/icons-vue';
-import { getDir, createFile, createDir, deleteFile as deleteFileApi, rename, copyFile, getFileContent } from '@/api/files';
+import { getDir, createFile, createDir, deleteFile as deleteFileApi, rename, copyFile, getFileContent, getFileAccess, setFileAccess, zipFile, unzipFile, downloadFile as remoteDownload, getDirSize, getLastBody } from '@/api/files';
 
 const router = useRouter();
 
@@ -292,6 +374,23 @@ const batchCopyDialogVisible = ref(false);
 const batchMoveDialogVisible = ref(false);
 const batchLoading = ref(false);
 const batchTargetPath = ref('');
+
+// 隐藏文件
+const showHidden = ref(false);
+
+// 压缩相关
+const zipDialogVisible = ref(false);
+const zipLoading = ref(false);
+const zipForm = ref({ type: 'tar_gz', dfile: '' });
+
+// 解压相关
+const unzipDialogVisible = ref(false);
+const unzipForm = ref({ sfile: '', dfile: '', type: '' });
+
+// 远程下载相关
+const remoteDownloadVisible = ref(false);
+const remoteDownloadLoading = ref(false);
+const remoteDownloadForm = ref({ url: '', path: '', filename: '' });
 
 // 路径分段
 const pathSegments = computed(() => {
@@ -360,7 +459,7 @@ function parseFileEntry(entry, isdir) {
 async function loadDir(path) {
   loading.value = true;
   try {
-    const res = await getDir(path || currentPath.value);
+    const res = await getDir(path || currentPath.value, showHidden.value);
     if (res && res.dir) {
       // 解析目录和文件列表
       const dirs = (res.dir || []).map(e => parseFileEntry(e, true));
@@ -590,15 +689,26 @@ async function confirmBatchMove() {
 }
 
 // 权限设置
-function showPermissionsDialog(row) {
+async function showPermissionsDialog(row) {
   const filePath = currentPath.value === '/' ? '/' + row.name : currentPath.value + '/' + row.name;
   permissionsForm.value = {
     path: filePath,
     mode: row.accept || '755',
-    owner: 'www',
+    owner: row.owner || 'www',
     recursive: row.isdir,
+    isBatch: false,
   };
   permissionsDialogVisible.value = true;
+  // 获取当前权限
+  try {
+    const res = await getFileAccess(filePath);
+    if (res && res.data) {
+      permissionsForm.value.mode = res.data.access || permissionsForm.value.mode;
+      permissionsForm.value.owner = res.data.user || permissionsForm.value.owner;
+    }
+  } catch {
+    // 使用默认值
+  }
 }
 
 function showBatchPermissionsDialog() {
@@ -611,6 +721,7 @@ function showBatchPermissionsDialog() {
     mode: '755',
     owner: 'www',
     recursive: false,
+    isBatch: true,
   };
   permissionsDialogVisible.value = true;
 }
@@ -622,8 +733,22 @@ async function confirmPermissions() {
   }
   permissionsLoading.value = true;
   try {
-    // 调用权限设置 API（如存在）
-    ElMessage.success('权限设置成功');
+    if (permissionsForm.value.isBatch) {
+      let successCount = 0;
+      for (const row of selectedFiles.value) {
+        const fp = currentPath.value === '/' ? '/' + row.name : currentPath.value + '/' + row.name;
+        try {
+          await setFileAccess(fp, permissionsForm.value.owner, permissionsForm.value.mode);
+          successCount++;
+        } catch {
+          // continue
+        }
+      }
+      ElMessage.success(`权限设置完成: 成功 ${successCount} 个`);
+    } else {
+      await setFileAccess(permissionsForm.value.path, permissionsForm.value.owner, permissionsForm.value.mode);
+      ElMessage.success('权限设置成功');
+    }
     permissionsDialogVisible.value = false;
     refreshList();
   } catch (error) {
@@ -633,8 +758,8 @@ async function confirmPermissions() {
   }
 }
 
-// 下载文件
-async function downloadFile(row) {
+// 下载文件（本地导出）
+async function downloadFileLocal(row) {
   const filePath = currentPath.value === '/' ? '/' + row.name : currentPath.value + '/' + row.name;
   try {
     const res = await getFileContent(filePath);
@@ -653,6 +778,122 @@ async function downloadFile(row) {
     }
   } catch (error) {
     ElMessage.error('下载失败: ' + (error.message || '未知错误'));
+  }
+}
+
+// 压缩文件
+function showZipDialog() {
+  if (selectedFiles.value.length === 0) {
+    ElMessage.warning('请先选择要压缩的文件');
+    return;
+  }
+  const firstFile = selectedFiles.value[0];
+  zipForm.value = {
+    type: 'tar_gz',
+    dfile: (firstFile.name || 'archive') + '.tar.gz',
+  };
+  zipDialogVisible.value = true;
+}
+
+async function confirmZip() {
+  if (!zipForm.value.dfile) {
+    ElMessage.warning('请输入压缩文件名');
+    return;
+  }
+  zipLoading.value = true;
+  try {
+    const sfiles = selectedFiles.value.map(f =>
+      currentPath.value === '/' ? '/' + f.name : currentPath.value + '/' + f.name
+    ).join(',');
+    const dfilePath = currentPath.value === '/' ? '/' + zipForm.value.dfile : currentPath.value + '/' + zipForm.value.dfile;
+    await zipFile(sfiles, dfilePath, zipForm.value.type, currentPath.value);
+    ElMessage.success('压缩成功');
+    zipDialogVisible.value = false;
+    refreshList();
+  } catch (error) {
+    ElMessage.error('压缩失败: ' + (error.message || '未知错误'));
+  } finally {
+    zipLoading.value = false;
+  }
+}
+
+// 判断是否为压缩文件
+function isArchiveFile(name) {
+  const ext = (name || '').split('.').pop().toLowerCase();
+  return ['zip', 'tar', 'gz', 'tgz', 'tar.gz', 'tar.bz2', 'rar', '7z', 'bz2'].includes(ext);
+}
+
+// 解压文件
+function showUnzipDialog(row) {
+  const filePath = currentPath.value === '/' ? '/' + row.name : currentPath.value + '/' + row.name;
+  unzipForm.value = {
+    sfile: filePath,
+    dfile: currentPath.value,
+    type: 'extract',
+  };
+  unzipDialogVisible.value = true;
+}
+
+async function confirmUnzip() {
+  zipLoading.value = true;
+  try {
+    await unzipFile(unzipForm.value.sfile, unzipForm.value.dfile, unzipForm.value.type, currentPath.value);
+    ElMessage.success('解压成功');
+    unzipDialogVisible.value = false;
+    refreshList();
+  } catch (error) {
+    ElMessage.error('解压失败: ' + (error.message || '未知错误'));
+  } finally {
+    zipLoading.value = false;
+  }
+}
+
+// 远程下载
+function showRemoteDownloadDialog() {
+  remoteDownloadForm.value = {
+    url: '',
+    path: currentPath.value,
+    filename: '',
+  };
+  remoteDownloadVisible.value = true;
+}
+
+async function confirmRemoteDownload() {
+  if (!remoteDownloadForm.value.url) {
+    ElMessage.warning('请输入下载地址');
+    return;
+  }
+  remoteDownloadLoading.value = true;
+  try {
+    await remoteDownload(
+      remoteDownloadForm.value.url,
+      remoteDownloadForm.value.path,
+      remoteDownloadForm.value.filename
+    );
+    ElMessage.success('远程下载任务已提交');
+    remoteDownloadVisible.value = false;
+    // 延迟刷新列表
+    setTimeout(() => refreshList(), 3000);
+  } catch (error) {
+    ElMessage.error('远程下载失败: ' + (error.message || '未知错误'));
+  } finally {
+    remoteDownloadLoading.value = false;
+  }
+}
+
+// 查看目录大小
+async function showDirSize(row) {
+  const dirPath = currentPath.value === '/' ? '/' + row.name : currentPath.value + '/' + row.name;
+  try {
+    const res = await getDirSize(dirPath);
+    const size = res.data || res;
+    ElMessageBox.alert(
+      `<div>目录: <strong>${row.name}</strong></div><div>大小: <strong>${typeof size === 'string' ? size : formatSize(size)}</strong></div>`,
+      '目录大小',
+      { dangerouslyUseHTMLString: true }
+    );
+  } catch (error) {
+    ElMessage.error('获取目录大小失败');
   }
 }
 
