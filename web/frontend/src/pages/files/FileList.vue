@@ -115,6 +115,47 @@
       </div>
     </div>
 
+    <!-- 文件统计信息栏 -->
+    <div class="file-stats-bar" v-if="!loading">
+      <div class="stats-left">
+        <span class="stat-item">
+          <el-icon><Folder /></el-icon>
+          {{ dirCount }} 个文件夹
+        </span>
+        <span class="stat-item">
+          <el-icon><Document /></el-icon>
+          {{ fileCount }} 个文件
+        </span>
+        <span class="stat-item" v-if="totalSize > 0">
+          总大小: {{ formatSize(totalSize) }}
+        </span>
+      </div>
+      <div class="stats-right">
+        <span v-if="selectedFiles.length" class="stat-item selected-info">
+          已选 {{ selectedFiles.length }} 项 ({{ formatSize(selectedSize) }})
+        </span>
+        <span class="stat-item shortcut-hint">
+          <kbd>Backspace</kbd> 返回 · <kbd>Del</kbd> 删除 · <kbd>Ctrl+A</kbd> 全选
+        </span>
+      </div>
+    </div>
+
+    <!-- 常用路径书签 -->
+    <div class="quick-paths" v-if="quickPaths.length">
+      <span class="quick-paths-label">常用路径:</span>
+      <el-tag
+        v-for="qp in quickPaths"
+        :key="qp.path"
+        size="small"
+        :type="currentPath === qp.path ? '' : 'info'"
+        :effect="currentPath === qp.path ? 'dark' : 'plain'"
+        class="quick-path-tag"
+        @click="navigateTo(qp.path)"
+      >
+        {{ qp.name }}
+      </el-tag>
+    </div>
+
     <!-- 文件列表 -->
     <div class="page-card file-table-wrapper">
       <el-table
@@ -370,7 +411,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
@@ -489,6 +530,51 @@ const filteredFiles = computed(() => {
   );
 });
 
+// 文件统计
+const dirCount = computed(() => fileList.value.filter(f => f.isdir).length);
+const fileCount = computed(() => fileList.value.filter(f => !f.isdir).length);
+const totalSize = computed(() => fileList.value.reduce((sum, f) => sum + (f.isdir ? 0 : (f.size || 0)), 0));
+const selectedSize = computed(() => selectedFiles.value.reduce((sum, f) => sum + (f.isdir ? 0 : (f.size || 0)), 0));
+
+// 常用路径书签
+const quickPaths = computed(() => {
+  const paths = [
+    { name: '根目录', path: '/' },
+    { name: '/www', path: '/www' },
+    { name: '/tmp', path: '/tmp' },
+    { name: '/var/log', path: '/var/log' },
+    { name: '/etc', path: '/etc' },
+    { name: '/opt', path: '/opt' },
+  ];
+  return paths;
+});
+
+// 键盘快捷键
+function handleKeydown(e) {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  // Backspace = 返回上级
+  if (e.key === 'Backspace') {
+    e.preventDefault();
+    goBack();
+  }
+  // Delete = 删除选中文件
+  if (e.key === 'Delete' && selectedFiles.value.length > 0) {
+    e.preventDefault();
+    batchDelete();
+  }
+  // Ctrl+A = 全选
+  if (e.key === 'a' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    // This will be handled by the table's select-all
+  }
+  // F5 = 刷新
+  if (e.key === 'F5') {
+    e.preventDefault();
+    refreshList();
+  }
+}
+
 // 获取文件图标
 function getFileIcon(row) {
   if (row.isdir) return Folder;
@@ -502,6 +588,18 @@ function getFileIcon(row) {
 
 function getFileIconClass(row) {
   if (row.isdir) return 'icon-folder';
+  const ext = row.name.split('.').pop().toLowerCase();
+  if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'bmp', 'webp', 'ico'].includes(ext)) return 'icon-image';
+  if (['mp4', 'avi', 'mkv', 'mov', 'flv', 'wmv'].includes(ext)) return 'icon-video';
+  if (['mp3', 'wav', 'flac', 'aac', 'ogg'].includes(ext)) return 'icon-audio';
+  if (['zip', 'tar', 'gz', 'tgz', 'rar', '7z', 'bz2'].includes(ext)) return 'icon-archive';
+  if (['js', 'ts', 'py', 'go', 'java', 'php', 'rb', 'rs', 'c', 'cpp', 'h'].includes(ext)) return 'icon-code';
+  if (['html', 'htm', 'vue', 'jsx', 'tsx'].includes(ext)) return 'icon-web';
+  if (['css', 'scss', 'less', 'sass'].includes(ext)) return 'icon-style';
+  if (['json', 'yaml', 'yml', 'toml', 'xml', 'ini', 'conf', 'cfg'].includes(ext)) return 'icon-config';
+  if (['log', 'txt', 'md'].includes(ext)) return 'icon-text';
+  if (['sh', 'bash', 'zsh'].includes(ext)) return 'icon-script';
+  if (['sql', 'db', 'sqlite'].includes(ext)) return 'icon-database';
   return 'icon-file';
 }
 
@@ -1051,11 +1149,85 @@ async function showDirSize(row) {
 
 onMounted(() => {
   loadDir('/');
+  window.addEventListener('keydown', handleKeydown);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleKeydown);
 });
 </script>
 
 <style lang="scss" scoped>
 .file-list-page {
+  // 文件统计栏
+  .file-stats-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    background: #f5f7fa;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #909399;
+
+    .stats-left, .stats-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+
+      &.selected-info {
+        color: #409eff;
+        font-weight: 500;
+      }
+
+      &.shortcut-hint {
+        color: #c0c4cc;
+
+        kbd {
+          display: inline-block;
+          padding: 1px 4px;
+          font-size: 10px;
+          font-family: monospace;
+          background: #fff;
+          border: 1px solid #dcdfe6;
+          border-radius: 3px;
+          box-shadow: 0 1px 0 #dcdfe6;
+        }
+      }
+    }
+  }
+
+  // 常用路径
+  .quick-paths {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+
+    .quick-paths-label {
+      font-size: 12px;
+      color: #909399;
+      flex-shrink: 0;
+    }
+
+    .quick-path-tag {
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover {
+        transform: translateY(-1px);
+      }
+    }
+  }
+
   .path-bar {
     display: flex;
     align-items: center;
@@ -1120,13 +1292,19 @@ onMounted(() => {
         font-size: 20px;
         flex-shrink: 0;
 
-        &.icon-folder {
-          color: #e6a23c;
-        }
-
-        &.icon-file {
-          color: #909399;
-        }
+        &.icon-folder { color: #e6a23c; }
+        &.icon-image { color: #f56c6c; }
+        &.icon-video { color: #e040fb; }
+        &.icon-audio { color: #ff9800; }
+        &.icon-archive { color: #795548; }
+        &.icon-code { color: #4caf50; }
+        &.icon-web { color: #2196f3; }
+        &.icon-style { color: #9c27b0; }
+        &.icon-config { color: #607d8b; }
+        &.icon-text { color: #78909c; }
+        &.icon-script { color: #00bcd4; }
+        &.icon-database { color: #ff5722; }
+        &.icon-file { color: #909399; }
       }
 
       .file-name {
