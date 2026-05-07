@@ -214,6 +214,39 @@
       </el-table>
     </el-card>
 
+    <!-- 监控设置 -->
+    <el-card class="monitor-settings-card">
+      <template #header>
+        <div class="chart-header">
+          <span>监控设置</span>
+          <el-button icon="Refresh" @click="fetchMonitorSettings" size="small">刷新</el-button>
+        </div>
+      </template>
+      <el-row :gutter="16">
+        <el-col :xs="24" :sm="8">
+          <div class="setting-item">
+            <span class="setting-label">监控记录</span>
+            <el-switch v-model="monitorEnabled" @change="toggleMonitor" active-text="开启" inactive-text="关闭" />
+          </div>
+        </el-col>
+        <el-col :xs="24" :sm="8">
+          <div class="setting-item">
+            <span class="setting-label">保留天数</span>
+            <el-input-number v-model="monitorDays" :min="1" :max="365" style="width: 120px" />
+            <el-button type="primary" size="small" style="margin-left: 8px" @click="saveMonitorDays">保存</el-button>
+          </div>
+        </el-col>
+        <el-col :xs="24" :sm="8">
+          <div class="setting-item">
+            <span class="setting-label">仅统计外网</span>
+            <el-switch v-model="monitorOnlyNet" @change="toggleOnlyNet" active-text="开启" inactive-text="关闭" />
+          </div>
+        </el-col>
+      </el-row>
+      <el-divider />
+      <el-button type="danger" @click="clearMonitorData" :loading="clearingData">清空监控记录</el-button>
+    </el-card>
+
     <!-- 系统信息 -->
     <el-card class="system-info-card">
       <template #header>
@@ -240,7 +273,7 @@ import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import * as echarts from 'echarts';
 import { useAppStore } from '@/stores/app';
-import { getSystemInfo, getSystemNetwork, getDiskInfo, getCpuIo, getDiskIo, getNetworkIo } from '@/api/index';
+import { getSystemInfo, getSystemNetwork, getDiskInfo, getCpuIo, getDiskIo, getNetworkIo, getMonitorControl, setMonitorControl } from '@/api/index';
 
 const appStore = useAppStore();
 
@@ -298,6 +331,12 @@ const systemInfo = ref({
   memory_total: 0,
   disk_total: 0
 });
+
+// 监控设置
+const monitorEnabled = ref(true);
+const monitorDays = ref(30);
+const monitorOnlyNet = ref(true);
+const clearingData = ref(false);
 
 let refreshTimer = null;
 
@@ -540,6 +579,66 @@ async function killProcess(process) {
   }
 }
 
+// 监控设置
+async function fetchMonitorSettings() {
+  try {
+    const res = await getMonitorControl();
+    if (res) {
+      monitorEnabled.value = res.status !== false;
+      monitorDays.value = parseInt(res.day) || 30;
+      monitorOnlyNet.value = res.stat_all_status !== false;
+    }
+  } catch (e) {
+    console.error('获取监控设置失败:', e);
+  }
+}
+
+async function toggleMonitor(val) {
+  try {
+    await setMonitorControl(val ? '1' : '0', monitorDays.value.toString());
+    ElMessage.success(val ? '监控已开启' : '监控已关闭');
+  } catch (e) {
+    monitorEnabled.value = !val;
+    ElMessage.error('设置失败');
+  }
+}
+
+async function saveMonitorDays() {
+  try {
+    await setMonitorControl(monitorEnabled.value ? '1' : '0', monitorDays.value.toString());
+    ElMessage.success('保留天数已保存');
+  } catch (e) {
+    ElMessage.error('保存失败');
+  }
+}
+
+async function toggleOnlyNet(val) {
+  try {
+    await setMonitorControl(val ? '3' : '2', monitorDays.value.toString());
+    ElMessage.success(val ? '已开启仅统计外网' : '已关闭仅统计外网');
+  } catch (e) {
+    monitorOnlyNet.value = !val;
+    ElMessage.error('设置失败');
+  }
+}
+
+async function clearMonitorData() {
+  try {
+    await ElMessageBox.confirm('确定要清空所有监控记录吗？此操作不可恢复！', '清空监控记录', {
+      type: 'warning',
+      confirmButtonText: '确定清空',
+      cancelButtonText: '取消'
+    });
+    clearingData.value = true;
+    await setMonitorControl('del', '');
+    ElMessage.success('监控记录已清空');
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('清空失败');
+  } finally {
+    clearingData.value = false;
+  }
+}
+
 async function refreshData() {
   try {
     const [basicRes, networkRes, diskRes] = await Promise.all([
@@ -686,6 +785,9 @@ onMounted(async () => {
   // 获取进程列表
   refreshProcesses();
 
+  // 获取监控设置
+  fetchMonitorSettings();
+
   // 每 5 秒刷新数据
   refreshTimer = setInterval(() => {
     refreshData();
@@ -798,6 +900,23 @@ onBeforeUnmount(() => {
     .cpu-value {
       font-size: 12px;
       margin-left: 8px;
+    }
+  }
+
+  .monitor-settings-card {
+    margin-bottom: 16px;
+
+    .setting-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+
+      .setting-label {
+        font-size: 14px;
+        color: #606266;
+        min-width: 80px;
+      }
     }
   }
 

@@ -314,8 +314,8 @@ const copyLog = () => {
 const deleteLog = async (log) => {
   try {
     await ElMessageBox.confirm('确定要删除这条日志吗？', '删除确认', { type: 'warning' });
-    ElMessage.success('删除成功');
-    fetchLogs();
+    // 后端暂无单条日志删除API，提示用户使用清空功能
+    ElMessage.warning('暂不支持删除单条日志，请使用"清空日志"功能');
   } catch (error) {
     if (error !== 'cancel') ElMessage.error('删除失败');
   }
@@ -337,7 +337,28 @@ const clearLogs = async () => {
 };
 
 const exportLogs = () => {
-  ElMessage.info('导出功能开发中');
+  if (logList.value.length === 0) {
+    ElMessage.warning('暂无日志可导出');
+    return;
+  }
+  try {
+    const header = 'ID,类型,内容,用户ID,时间\n';
+    const rows = logList.value.map(log => {
+      const content = (log.log || '').replace(/"/g, '""').replace(/\n/g, ' ');
+      return `${log.id},"${getTypeName(log.type)}","${content}",${log.uid || ''},${log.add_time || ''}`;
+    }).join('\n');
+    const csv = '﻿' + header + rows;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `logs_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    ElMessage.success('日志导出成功');
+  } catch {
+    ElMessage.error('导出失败');
+  }
 };
 
 const toggleAutoRefresh = (val) => {

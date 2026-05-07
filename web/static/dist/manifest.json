@@ -1,6 +1,6 @@
 {
-  "_files-0235e95d.js": {
-    "file": "assets/files-0235e95d.js",
+  "_files-9da20f1b.js": {
+    "file": "assets/files-9da20f1b.js",
     "imports": [
       "index.html"
     ]
@@ -142,7 +142,7 @@
       "src/pages/soft/Soft.vue",
       "src/pages/setting/Setting.vue"
     ],
-    "file": "assets/index-daa78073.js",
+    "file": "assets/index-6f6c07fa.js",
     "imports": [
       "_vendor-vue-8413b67a.js",
       "_vendor-element-57173e2c.js",
@@ -629,7 +629,7 @@
     "css": [
       "assets/Dashboard-17f7b5a2.css"
     ],
-    "file": "assets/Dashboard-533ef8ec.js",
+    "file": "assets/Dashboard-ca4efd69.js",
     "imports": [
       "index.html",
       "_vendor-echarts-6433f102.js",
@@ -648,7 +648,7 @@
     "css": [
       "assets/Login-8ff6333b.css"
     ],
-    "file": "assets/Login-60cc8aad.js",
+    "file": "assets/Login-916f26e3.js",
     "imports": [
       "_vendor-vue-8413b67a.js",
       "_vendor-element-57173e2c.js",
@@ -666,7 +666,7 @@
     "css": [
       "assets/Crontab-a5e23fdb.css"
     ],
-    "file": "assets/Crontab-3798bca1.js",
+    "file": "assets/Crontab-d7bc4d11.js",
     "imports": [
       "_vendor-element-57173e2c.js",
       "index.html",
@@ -687,13 +687,13 @@
     "dynamicImports": [
       "_vendor-monaco-85ffb45c.js"
     ],
-    "file": "assets/FileEdit-4371ba90.js",
+    "file": "assets/FileEdit-49f84c4a.js",
     "imports": [
       "_vendor-vue-8413b67a.js",
       "_vendor-element-57173e2c.js",
       "_vendor-monaco-85ffb45c.js",
       "index.html",
-      "_files-0235e95d.js"
+      "_files-9da20f1b.js"
     ],
     "isDynamicEntry": true,
     "src": "src/pages/files/FileEdit.vue"
@@ -706,11 +706,11 @@
     "css": [
       "assets/FileList-89ce9e5d.css"
     ],
-    "file": "assets/FileList-02923cc2.js",
+    "file": "assets/FileList-fe09afd5.js",
     "imports": [
       "_vendor-vue-8413b67a.js",
       "_vendor-element-57173e2c.js",
-      "_files-0235e95d.js",
+      "_files-9da20f1b.js",
       "index.html",
       "_vendor-monaco-85ffb45c.js"
     ],
@@ -725,7 +725,7 @@
     "css": [
       "assets/Firewall-fd44794c.css"
     ],
-    "file": "assets/Firewall-3075e18c.js",
+    "file": "assets/Firewall-fb5b3247.js",
     "imports": [
       "_vendor-element-57173e2c.js",
       "index.html",
@@ -736,14 +736,14 @@
     "src": "src/pages/firewall/Firewall.vue"
   },
   "src/pages/logs/Logs.css": {
-    "file": "assets/Logs-7860da7d.css",
+    "file": "assets/Logs-bcb198b3.css",
     "src": "src/pages/logs/Logs.css"
   },
   "src/pages/logs/Logs.vue": {
     "css": [
-      "assets/Logs-7860da7d.css"
+      "assets/Logs-bcb198b3.css"
     ],
-    "file": "assets/Logs-9bcf42d0.js",
+    "file": "assets/Logs-142608d2.js",
     "imports": [
       "_vendor-element-57173e2c.js",
       "index.html",
@@ -754,14 +754,14 @@
     "src": "src/pages/logs/Logs.vue"
   },
   "src/pages/monitor/Monitor.css": {
-    "file": "assets/Monitor-b56d0fdd.css",
+    "file": "assets/Monitor-ab5bb357.css",
     "src": "src/pages/monitor/Monitor.css"
   },
   "src/pages/monitor/Monitor.vue": {
     "css": [
-      "assets/Monitor-b56d0fdd.css"
+      "assets/Monitor-ab5bb357.css"
     ],
-    "file": "assets/Monitor-70361805.js",
+    "file": "assets/Monitor-2ff230f4.js",
     "imports": [
       "_vendor-element-57173e2c.js",
       "_vendor-echarts-6433f102.js",
@@ -780,7 +780,7 @@
     "css": [
       "assets/Setting-7e236598.css"
     ],
-    "file": "assets/Setting-06007d3f.js",
+    "file": "assets/Setting-1c0b0946.js",
     "imports": [
       "_vendor-element-57173e2c.js",
       "index.html",
@@ -798,7 +798,7 @@
     "css": [
       "assets/SiteList-e85b51a7.css"
     ],
-    "file": "assets/SiteList-86f3b79e.js",
+    "file": "assets/SiteList-fd0988ef.js",
     "imports": [
       "_vendor-vue-8413b67a.js",
       "_vendor-element-57173e2c.js",
@@ -816,7 +816,7 @@
     "css": [
       "assets/Soft-ee0d37d9.css"
     ],
-    "file": "assets/Soft-f0acfc42.js",
+    "file": "assets/Soft-8ec3a23c.js",
     "imports": [
       "_vendor-element-57173e2c.js",
       "index.html",

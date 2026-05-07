@@ -42,6 +42,21 @@ export function getPanelInfo() {
   return request({ url: '/panel/get_panel_info', method: 'post' });
 }
 
+// 获取监控设置
+export function getMonitorControl() {
+  const data = new URLSearchParams();
+  data.append('type', 'get');
+  return request({ url: '/system/set_control', method: 'post', data });
+}
+
+// 设置监控开关
+export function setMonitorControl(stype, day) {
+  const data = new URLSearchParams();
+  data.append('type', stype);
+  data.append('day', day || '30');
+  return request({ url: '/system/set_control', method: 'post', data });
+}
+
 // ==================== 网站管理 ====================
 
 // 站点列表
