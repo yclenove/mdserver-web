@@ -14,7 +14,7 @@ import json
 import os
 import sys
 
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, send_from_directory, make_response
 from flask import redirect
 from flask import Response
 from flask import request
@@ -25,6 +25,44 @@ from admin import session
 
 import core.mw as mw
 import thisdb
+
+# Vue SPA 静态文件目录
+_vue_dist_dir = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    'static', 'dist'
+)
+
+# MIME 类型映射
+_vue_mime_types = {
+    '.js': 'application/javascript',
+    '.css': 'text/css',
+    '.html': 'text/html',
+    '.json': 'application/json',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+    '.ico': 'image/x-icon',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+    '.ttf': 'font/ttf',
+}
+
+
+def _serve_vue_file(file_path):
+    """发送 Vue 静态文件，设置正确的 MIME 类型"""
+    ext = os.path.splitext(file_path)[1].lower()
+    mime_type = _vue_mime_types.get(ext, 'application/octet-stream')
+    response = make_response(send_from_directory(_vue_dist_dir, file_path))
+    response.headers['Content-Type'] = mime_type
+    return response
+
+
+def _serve_vue_spa(vue_sub_path):
+    """服务 Vue SPA: 如果是静态文件则返回文件，否则返回 index.html"""
+    if vue_sub_path and os.path.exists(os.path.join(_vue_dist_dir, vue_sub_path)):
+        return _serve_vue_file(vue_sub_path)
+    return send_from_directory(_vue_dist_dir, 'index.html')
 
 
 blueprint = Blueprint(
@@ -74,6 +112,17 @@ def admin_safe_path(path):
 
     db_path = thisdb.getOption("admin_path")
     name = thisdb.getOption("template", default="default")
+
+    # 处理 Vue SPA 路径: /{admin_path}/vue/...
+    vue_prefix = db_path + '/vue'
+    if path == vue_prefix or path.startswith(vue_prefix + '/'):
+        if not isLogined():
+            # 未登录时重定向到登录页
+            return redirect('/' + db_path)
+        # 提取 Vue 子路径
+        vue_sub = path[len(vue_prefix):].lstrip('/')
+        return _serve_vue_spa(vue_sub)
+
     if isLogined():
         return redirect("/")
     if db_path == path:

@@ -101,6 +101,47 @@ for module in get_submodules():
         app.register_blueprint(module)
 
 
+# Vue SPA 静态文件目录和辅助函数（必须在 before_request 之前定义）
+import os as _os
+from flask import send_from_directory, make_response
+
+_vue_dist_dir = _os.path.join(
+    _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+    'static', 'dist'
+)
+
+_vue_mime_types = {
+    '.js': 'application/javascript',
+    '.css': 'text/css',
+    '.html': 'text/html',
+    '.json': 'application/json',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+    '.ico': 'image/x-icon',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+    '.ttf': 'font/ttf',
+}
+
+
+def _send_vue_file(file_path):
+    """发送 Vue 静态文件，设置正确的 MIME 类型"""
+    ext = _os.path.splitext(file_path)[1].lower()
+    mime_type = _vue_mime_types.get(ext, 'application/octet-stream')
+    response = make_response(send_from_directory(_vue_dist_dir, file_path))
+    response.headers['Content-Type'] = mime_type
+    return response
+
+
+def _serve_vue_spa(vue_sub_path):
+    """服务 Vue SPA: 如果是静态文件则返回文件，否则返回 index.html"""
+    if vue_sub_path and _os.path.exists(_os.path.join(_vue_dist_dir, vue_sub_path)):
+        return _send_vue_file(vue_sub_path)
+    return send_from_directory(_vue_dist_dir, 'index.html')
+
+
 def sendAuthenticated():
     # 发送http认证信息
     request_host = mw.getHostAddr()
@@ -115,6 +156,36 @@ def sendAuthenticated():
 @app.before_request
 def requestCheck():
     request.start_time = time.time()
+
+    # 处理 Vue 静态资源 - 这些路径不需要安全入口前缀
+    # /vue/assets/... 和 /assets/... 都需要处理
+    if request.path.startswith('/vue/assets/') or request.path.startswith('/assets/'):
+        # 去掉 /vue/ 或 / 前缀，得到相对于 dist 目录的路径
+        if request.path.startswith('/vue/'):
+            file_path = request.path[len('/vue/'):]
+        else:
+            file_path = request.path[1:]
+        if file_path and _os.path.exists(_os.path.join(_vue_dist_dir, file_path)):
+            return _send_vue_file(file_path)
+    # 处理 /static/favicon.ico 等 Vue 需要的静态资源
+    if request.path.startswith('/static/favicon'):
+        favicon_path = _os.path.join(_vue_dist_dir, 'favicon.ico')
+        if _os.path.exists(favicon_path):
+            return _send_vue_file('favicon.ico')
+
+    # 处理 Vue SPA 路由 - 在路由匹配之前拦截
+    try:
+        db_path = thisdb.getOption("admin_path")
+        if db_path:
+            vue_prefix = '/' + db_path + '/vue'
+            if request.path == vue_prefix or request.path == vue_prefix + '/' or request.path.startswith(vue_prefix + '/'):
+                from admin.common import isLogined
+                if not isLogined():
+                    return redirect('/' + db_path)
+                vue_sub = request.path[len(vue_prefix):].lstrip('/')
+                return _serve_vue_spa(vue_sub)
+    except Exception:
+        pass
 
     admin_close = thisdb.getOption("admin_close")
     if admin_close == "yes":
@@ -238,56 +309,3 @@ app.logger.info("########################################################")
 app.logger.info("Starting %s v%s...", config.APP_NAME, config.APP_VERSION)
 app.logger.info("########################################################")
 app.logger.debug("Python syspath: %s", sys.path)
-
-
-# Vue SPA 路由 - 服务 Vue 前端
-import os as _os
-from flask import send_from_directory, make_response
-
-_vue_dist_dir = _os.path.join(
-    _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
-    'static', 'dist'
-)
-
-# MIME 类型映射
-_mime_types = {
-    '.js': 'application/javascript',
-    '.css': 'text/css',
-    '.html': 'text/html',
-    '.json': 'application/json',
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.gif': 'image/gif',
-    '.svg': 'image/svg+xml',
-    '.ico': 'image/x-icon',
-    '.woff': 'font/woff',
-    '.woff2': 'font/woff2',
-    '.ttf': 'font/ttf',
-}
-
-
-def _send_vue_file(file_path):
-    """发送 Vue 静态文件，设置正确的 MIME 类型"""
-    ext = _os.path.splitext(file_path)[1].lower()
-    mime_type = _mime_types.get(ext, 'application/octet-stream')
-    response = make_response(send_from_directory(_vue_dist_dir, file_path))
-    response.headers['Content-Type'] = mime_type
-    return response
-
-
-@app.route('/vue', strict_slashes=False)
-@app.route('/vue/<path:path>')
-def serve_vue(path=''):
-    """服务 Vue SPA 前端"""
-    if path and _os.path.exists(_os.path.join(_vue_dist_dir, path)):
-        return _send_vue_file(path)
-    return send_from_directory(_vue_dist_dir, 'index.html')
-
-
-@app.route('/assets/<path:path>')
-def serve_vue_assets(path=''):
-    """服务 Vue 静态资产"""
-    file_path = _os.path.join('assets', path)
-    if _os.path.exists(_os.path.join(_vue_dist_dir, file_path)):
-        return _send_vue_file(file_path)
-    return send_from_directory(_vue_dist_dir, 'index.html')

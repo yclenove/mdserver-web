@@ -343,13 +343,33 @@ function formatTime(timestamp) {
   return date.toLocaleString('zh-CN');
 }
 
+// 解析文件条目 "name;size;mtime;mode;owner;" 或 "name;size;mtime;mode;owner; -> link"
+function parseFileEntry(entry, isdir) {
+  const parts = entry.split(';');
+  const name = parts[0] || '';
+  const size = parseInt(parts[1]) || 0;
+  const mtime = parseInt(parts[2]) || 0;
+  const mode = parts[3] || '';
+  const owner = parts[4] || '';
+  // 检查是否有符号链接
+  const linkTarget = entry.includes(' -> ') ? entry.split(' -> ')[1].trim() : '';
+  return { name, size, mtime, mode, owner, isdir, link: linkTarget };
+}
+
 // 加载目录列表
 async function loadDir(path) {
   loading.value = true;
   try {
     const res = await getDir(path || currentPath.value);
-    fileList.value = res.data || [];
-    currentPath.value = path || currentPath.value;
+    if (res && res.dir) {
+      // 解析目录和文件列表
+      const dirs = (res.dir || []).map(e => parseFileEntry(e, true));
+      const files = (res.files || []).map(e => parseFileEntry(e, false));
+      fileList.value = [...dirs, ...files];
+    } else {
+      fileList.value = res.data || [];
+    }
+    currentPath.value = path || res.path || currentPath.value;
     pathInput.value = currentPath.value;
   } catch (error) {
     ElMessage.error('加载目录失败: ' + (error.message || '未知错误'));

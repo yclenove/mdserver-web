@@ -387,8 +387,8 @@ onMounted(async () => {
   await nextTick();
   initTrendChart();
 
-  // 每 5 秒刷新数据
-  refreshTimer = setInterval(refreshData, 5000);
+  // 每 30 秒刷新数据
+  refreshTimer = setInterval(refreshData, 30000);
 
   // 监听窗口大小变化
   window.addEventListener('resize', handleResize);

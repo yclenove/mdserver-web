@@ -2,6 +2,16 @@ import { createRouter, createWebHistory } from 'vue-router';
 import { useUserStore } from '@/stores/user';
 import { ElMessage } from 'element-plus';
 
+// 检测安全入口路径，构建正确的 base 路径
+function getRouterBase() {
+  const path = window.location.pathname;
+  const match = path.match(/^\/([a-zA-Z0-9]{8})\//);
+  if (match) {
+    return '/' + match[1] + '/vue/';
+  }
+  return '/vue/';
+}
+
 // 布局组件
 import MainLayout from '@/layouts/MainLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
@@ -92,8 +102,9 @@ const routes = [
   },
 ];
 
+const routerBase = getRouterBase();
 const router = createRouter({
-  history: createWebHistory('/vue/'),
+  history: createWebHistory(routerBase),
   routes,
 });
 

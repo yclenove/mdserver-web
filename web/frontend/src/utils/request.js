@@ -6,7 +6,7 @@ function getAdminPath() {
   // 从当前 URL 路径中提取安全入口
   const path = window.location.pathname;
   // 匹配 /<8位安全入口>/vue/... 模式
-  const match = path.match(/^\/([a-z0-9]{8})\//);
+  const match = path.match(/^\/([a-zA-Z0-9]{8})\//);
   if (match) {
     return '/' + match[1];
   }
@@ -16,8 +16,9 @@ function getAdminPath() {
 const adminPath = getAdminPath();
 
 // 创建 Axios 实例
+// API 路由不需要安全入口前缀，直接使用根路径
 const service = axios.create({
-  baseURL: adminPath || '/',
+  baseURL: '/',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/x-www-form-urlencoded',
@@ -58,7 +59,7 @@ service.interceptors.response.use(
       ElMessage.error('登录已过期，请重新登录');
       localStorage.removeItem('mw_token');
       localStorage.removeItem('mw_username');
-      window.location.href = '/vue/login';
+      window.location.href = adminPath + '/vue/login';
       return Promise.reject(new Error('未授权'));
     }
 
@@ -72,7 +73,7 @@ service.interceptors.response.use(
           ElMessage.error('登录已过期，请重新登录');
           localStorage.removeItem('mw_token');
           localStorage.removeItem('mw_username');
-          window.location.href = '/login';
+          window.location.href = adminPath + '/vue/login';
           break;
         case 403:
           ElMessage.error('没有权限访问');
