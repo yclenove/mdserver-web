@@ -204,7 +204,8 @@ import {
   setIpv6Status,
   setName,
   setPassword,
-  setPort
+  setPort,
+  restartPanelApi
 } from '@/api/index';
 
 const activeTab = ref('basic');
@@ -420,8 +421,9 @@ const savePassword = async () => {
 const restartPanel = async () => {
   try {
     await ElMessageBox.confirm('确定要重启面板吗？', '重启面板', { type: 'warning' });
-    await togglePanel();
+    await restartPanelApi();
     ElMessage.success('面板正在重启...');
+    setTimeout(() => window.location.reload(), 3000);
   } catch (error) {
     if (error !== 'cancel') console.error('重启面板失败:', error);
   }

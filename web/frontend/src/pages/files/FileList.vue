@@ -39,6 +39,20 @@
         <el-button :icon="Download" size="small" @click="showRemoteDownloadDialog">
           远程下载
         </el-button>
+        <el-upload
+          :action="uploadUrl"
+          :data="uploadData"
+          :show-file-list="false"
+          :on-success="handleUploadSuccess"
+          :on-error="handleUploadError"
+          :before-upload="beforeUpload"
+          :headers="uploadHeaders"
+          name="zunfile"
+          multiple
+          style="display: inline-block; margin-left: 0"
+        >
+          <el-button :icon="Upload" size="small">上传文件</el-button>
+        </el-upload>
         <el-button
           :icon="CopyDocument"
           size="small"
@@ -391,6 +405,36 @@ const unzipForm = ref({ sfile: '', dfile: '', type: '' });
 const remoteDownloadVisible = ref(false);
 const remoteDownloadLoading = ref(false);
 const remoteDownloadForm = ref({ url: '', path: '', filename: '' });
+
+// 上传相关
+const uploadUrl = computed(() => '/files/upload_file?path=' + encodeURIComponent(currentPath.value));
+const uploadData = computed(() => ({ path: currentPath.value }));
+const uploadHeaders = computed(() => {
+  const token = localStorage.getItem('mw_token');
+  return token ? {} : {};
+});
+
+function beforeUpload(file) {
+  const maxSize = 200 * 1024 * 1024; // 200MB
+  if (file.size > maxSize) {
+    ElMessage.warning(`文件 ${file.name} 超过200MB限制`);
+    return false;
+  }
+  return true;
+}
+
+function handleUploadSuccess(response) {
+  if (response.status === false || response.status === -1) {
+    ElMessage.error(response.msg || '上传失败');
+    return;
+  }
+  ElMessage.success('上传成功');
+  refreshList();
+}
+
+function handleUploadError(error) {
+  ElMessage.error('上传失败: ' + (error.message || '网络错误'));
+}
 
 // 路径分段
 const pathSegments = computed(() => {
@@ -761,24 +805,14 @@ async function confirmPermissions() {
 // 下载文件（本地导出）
 async function downloadFileLocal(row) {
   const filePath = currentPath.value === '/' ? '/' + row.name : currentPath.value + '/' + row.name;
-  try {
-    const res = await getFileContent(filePath);
-    const content = res.data?.data || res.data;
-    if (content) {
-      const blob = new Blob([content], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = row.name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      ElMessage.success('下载成功');
-    }
-  } catch (error) {
-    ElMessage.error('下载失败: ' + (error.message || '未知错误'));
-  }
+  // Use backend download endpoint for all file types (supports binary files)
+  const downloadUrl = '/files/download?path=' + encodeURIComponent(filePath) + '&filename=' + encodeURIComponent(row.name);
+  const a = document.createElement('a');
+  a.href = downloadUrl;
+  a.download = row.name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 // 压缩文件
