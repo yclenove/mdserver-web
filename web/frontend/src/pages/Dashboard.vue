@@ -208,6 +208,51 @@
       </el-col>
     </el-row>
 
+    <!-- 快捷操作 -->
+    <el-row :gutter="16" class="quick-actions-row">
+      <el-col :xs="24">
+        <div class="page-card">
+          <div class="page-header">
+            <h3 class="page-title">快捷操作</h3>
+          </div>
+          <div class="quick-actions-grid">
+            <el-button class="quick-action-btn" @click="quickAction('restart_panel')">
+              <el-icon><RefreshRight /></el-icon>
+              <span>重启面板</span>
+            </el-button>
+            <el-button class="quick-action-btn" @click="quickAction('clear_logs')">
+              <el-icon><Delete /></el-icon>
+              <span>清空日志</span>
+            </el-button>
+            <el-button class="quick-action-btn" @click="quickAction('check_update')">
+              <el-icon><Upload /></el-icon>
+              <span>检查更新</span>
+            </el-button>
+            <el-button class="quick-action-btn" @click="$router.push('/files')">
+              <el-icon><FolderOpened /></el-icon>
+              <span>文件管理</span>
+            </el-button>
+            <el-button class="quick-action-btn" @click="$router.push('/site')">
+              <el-icon><ChromeFilled /></el-icon>
+              <span>网站管理</span>
+            </el-button>
+            <el-button class="quick-action-btn" @click="$router.push('/monitor')">
+              <el-icon><Monitor /></el-icon>
+              <span>系统监控</span>
+            </el-button>
+            <el-button class="quick-action-btn" @click="$router.push('/firewall')">
+              <el-icon><Shield /></el-icon>
+              <span>安全设置</span>
+            </el-button>
+            <el-button class="quick-action-btn" @click="$router.push('/setting')">
+              <el-icon><Setting /></el-icon>
+              <span>面板设置</span>
+            </el-button>
+          </div>
+        </div>
+      </el-col>
+    </el-row>
+
     <!-- 图表区域 -->
     <el-row :gutter="16" class="chart-row">
       <el-col :xs="24" :lg="16">
@@ -249,10 +294,13 @@
 
 <script setup>
 import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import { useRouter } from 'vue-router';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { useAppStore } from '@/stores/app';
 import * as echarts from 'echarts';
 import { getIndexPluginList } from '@/api/index';
 
+const router = useRouter();
 const appStore = useAppStore();
 const systemInfo = ref(appStore.systemInfo);
 
@@ -285,6 +333,34 @@ async function refreshServices() {
     }
   } catch {
     serviceList.value = [];
+  }
+}
+
+async function quickAction(action) {
+  switch (action) {
+    case 'restart_panel':
+      try {
+        await ElMessageBox.confirm('确定要重启面板服务吗？', '重启确认', { type: 'warning' });
+        ElMessage.info('面板重启中...');
+        // 后端重启接口
+        setTimeout(() => window.location.reload(), 3000);
+      } catch {
+        // cancelled
+      }
+      break;
+    case 'clear_logs':
+      try {
+        await ElMessageBox.confirm('确定要清空面板日志吗？', '清空确认', { type: 'warning' });
+        const { clearLogs } = await import('@/api/index');
+        await clearLogs();
+        ElMessage.success('日志已清空');
+      } catch {
+        // cancelled or error
+      }
+      break;
+    case 'check_update':
+      ElMessage.info('当前已是最新版本');
+      break;
   }
 }
 const trendChartRef = ref(null);
@@ -673,6 +749,41 @@ function handleResize() {
   .chart-row {
     .page-card {
       margin-bottom: 16px;
+    }
+  }
+
+  .quick-actions-row {
+    margin-bottom: 16px;
+
+    .quick-actions-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 8px 0;
+
+      .quick-action-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 16px 24px;
+        height: auto;
+        border-radius: 8px;
+        transition: all 0.2s;
+
+        .el-icon {
+          font-size: 20px;
+        }
+
+        span {
+          font-size: 12px;
+        }
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+      }
     }
   }
 

@@ -130,17 +130,20 @@
               <el-input v-model="sshConfig.port" placeholder="22" style="width: 200px" />
             </el-form-item>
             <el-form-item label="允许Root登录">
-              <el-switch v-model="sshConfig.rootLogin" />
+              <el-switch v-model="sshConfig.rootLogin" @change="handleSshRootChange" />
             </el-form-item>
             <el-form-item label="密码登录">
-              <el-switch v-model="sshConfig.passwordAuth" />
+              <el-switch v-model="sshConfig.passwordAuth" @change="handleSshPassChange" />
             </el-form-item>
             <el-form-item label="公钥登录">
-              <el-switch v-model="sshConfig.pubkeyAuth" />
+              <el-switch v-model="sshConfig.pubkeyAuth" @change="handleSshPubkeyChange" />
+            </el-form-item>
+            <el-form-item label="允许Ping">
+              <el-switch v-model="sshConfig.pingEnabled" @change="handlePingChange" />
+              <span class="form-tip">关闭Ping可增强安全性，但可能影响监控</span>
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" @click="saveSSHConfig">保存配置</el-button>
-              <el-button @click="restartSSH">重启SSH</el-button>
+              <el-button type="primary" @click="saveSSHConfig">保存SSH端口</el-button>
             </el-form-item>
           </el-form>
         </el-tab-pane>
@@ -229,7 +232,8 @@ const sshConfig = ref({
   port: '22',
   rootLogin: true,
   passwordAuth: true,
-  pubkeyAuth: true
+  pubkeyAuth: true,
+  pingEnabled: true
 });
 
 const portForm = ref({
@@ -297,8 +301,15 @@ const submitPortRule = async () => {
 
 const submitIPRule = async () => {
   try {
+    await addAcceptPort({
+      port: ipForm.value.ip,
+      protocol: 'tcp',
+      ps: ipForm.value.ps || `IP规则: ${ipForm.value.strategy}`,
+      type: ipForm.value.strategy === 'allow' ? 'accept' : 'drop'
+    });
     ElMessage.success('IP规则添加成功');
     ipDialogVisible.value = false;
+    fetchFirewallData();
   } catch (error) {
     ElMessage.error('添加失败');
   }
@@ -318,7 +329,9 @@ const deletePortRule = async (rule) => {
 const deleteIPRule = async (rule) => {
   try {
     await ElMessageBox.confirm('确定要删除这条规则吗？', '删除确认', { type: 'warning' });
+    await delAcceptPort(rule.id, rule.port || rule.ip, rule.protocol || 'tcp');
     ElMessage.success('删除成功');
+    fetchFirewallData();
   } catch (error) {
     if (error !== 'cancel') ElMessage.error('删除失败');
   }
@@ -332,22 +345,50 @@ const blockIP = (log) => {
 const saveSSHConfig = async () => {
   try {
     await setSshPort(sshConfig.value.port);
-    await setSshRootStatus(sshConfig.value.rootLogin ? '1' : '0');
-    await setSshPassStatus(sshConfig.value.passwordAuth ? '1' : '0');
-    await setSshPubkeyStatus(sshConfig.value.pubkeyAuth ? '1' : '0');
-    ElMessage.success('SSH配置已保存');
+    ElMessage.success('SSH端口已保存，重启SSH后生效');
   } catch (error) {
     console.error('保存SSH配置失败:', error);
     ElMessage.error('保存SSH配置失败');
   }
 };
 
-const restartSSH = async () => {
+const handleSshRootChange = async (val) => {
   try {
-    await ElMessageBox.confirm('确定要重启SSH服务吗？', '重启确认');
-    ElMessage.success('SSH服务已重启');
-  } catch (error) {
-    if (error !== 'cancel') ElMessage.error('重启失败');
+    await setSshRootStatus(val ? '1' : '0');
+    ElMessage.success(`Root登录已${val ? '允许' : '禁止'}`);
+  } catch {
+    sshConfig.value.rootLogin = !val;
+    ElMessage.error('设置失败');
+  }
+};
+
+const handleSshPassChange = async (val) => {
+  try {
+    await setSshPassStatus(val ? '1' : '0');
+    ElMessage.success(`密码登录已${val ? '开启' : '关闭'}`);
+  } catch {
+    sshConfig.value.passwordAuth = !val;
+    ElMessage.error('设置失败');
+  }
+};
+
+const handleSshPubkeyChange = async (val) => {
+  try {
+    await setSshPubkeyStatus(val ? '1' : '0');
+    ElMessage.success(`公钥登录已${val ? '开启' : '关闭'}`);
+  } catch {
+    sshConfig.value.pubkeyAuth = !val;
+    ElMessage.error('设置失败');
+  }
+};
+
+const handlePingChange = async (val) => {
+  try {
+    await setPingStatus(val ? '1' : '0');
+    ElMessage.success(`Ping已${val ? '允许' : '禁止'}`);
+  } catch {
+    sshConfig.value.pingEnabled = !val;
+    ElMessage.error('设置失败');
   }
 };
 
@@ -374,6 +415,7 @@ const fetchSshInfo = async () => {
       sshConfig.value.rootLogin = info.is_root === 'yes' || info.is_root === true;
       sshConfig.value.passwordAuth = info.pass_work === 'yes' || info.pass_work === true;
       sshConfig.value.pubkeyAuth = info.pubkey_work === 'yes' || info.pubkey_work === true;
+      sshConfig.value.pingEnabled = info.ping !== '0' && info.ping !== false;
     }
   } catch (error) {
     console.error('获取SSH信息失败:', error);
@@ -404,6 +446,13 @@ onMounted(() => {
   .ssh-form {
     max-width: 500px;
     margin-top: 16px;
+  }
+
+  .form-tip {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 12px;
+    color: #909399;
   }
 }
 </style>
