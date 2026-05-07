@@ -154,7 +154,7 @@
     <el-dialog v-model="portDialogVisible" title="添加端口规则" width="500px">
       <el-form :model="portForm" :rules="portRules2" ref="portFormRef" label-width="100px">
         <el-form-item label="端口" prop="port">
-          <el-input v-model="portForm.port" placeholder="请输入端口号" />
+          <el-input v-model="portForm.port" placeholder="如: 80 或 8000-9000" />
         </el-form-item>
         <el-form-item label="协议" prop="protocol">
           <el-select v-model="portForm.protocol" placeholder="选择协议">
@@ -183,7 +183,7 @@
     <el-dialog v-model="ipDialogVisible" title="添加IP规则" width="500px">
       <el-form :model="ipForm" :rules="ipRules2" ref="ipFormRef" label-width="100px">
         <el-form-item label="IP地址" prop="ip">
-          <el-input v-model="ipForm.ip" placeholder="请输入IP地址" />
+          <el-input v-model="ipForm.ip" placeholder="如: 1.2.3.4 或 1.2.3.0/24" />
         </el-form-item>
         <el-form-item label="策略" prop="strategy">
           <el-radio-group v-model="ipForm.strategy">
@@ -252,7 +252,29 @@ const ipForm = ref({
 const portRules2 = {
   port: [
     { required: true, message: '请输入端口号', trigger: 'blur' },
-    { pattern: /^\d+$/, message: '端口必须是数字', trigger: 'blur' }
+    { pattern: /^\d+(-\d+)?$/, message: '端口格式: 单个端口或范围(如80, 8000-9000)', trigger: 'blur' },
+    {
+      validator: (rule, value, callback) => {
+        if (!value) {
+          callback();
+          return;
+        }
+        const parts = value.split('-');
+        for (const part of parts) {
+          const num = parseInt(part);
+          if (isNaN(num) || num < 1 || num > 65535) {
+            callback(new Error('端口范围必须在 1-65535 之间'));
+            return;
+          }
+        }
+        if (parts.length === 2 && parseInt(parts[0]) >= parseInt(parts[1])) {
+          callback(new Error('端口范围不正确'));
+          return;
+        }
+        callback();
+      },
+      trigger: 'blur'
+    }
   ],
   protocol: [
     { required: true, message: '请选择协议', trigger: 'change' }
@@ -262,7 +284,45 @@ const portRules2 = {
 const ipRules2 = {
   ip: [
     { required: true, message: '请输入IP地址', trigger: 'blur' },
-    { pattern: /^(\d{1,3}\.){3}\d{1,3}$/, message: 'IP地址格式不正确', trigger: 'blur' }
+    {
+      validator: (rule, value, callback) => {
+        if (!value) {
+          callback();
+          return;
+        }
+        // 支持单个IP、CIDR、IP范围
+        const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+        const cidrPattern = /^(\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/;
+
+        if (cidrPattern.test(value)) {
+          const [ip, mask] = value.split('/');
+          const octets = ip.split('.');
+          for (const octet of octets) {
+            if (parseInt(octet) > 255) {
+              callback(new Error('IP地址格式不正确'));
+              return;
+            }
+          }
+          if (parseInt(mask) > 32) {
+            callback(new Error('CIDR掩码不正确'));
+            return;
+          }
+          callback();
+        } else if (ipPattern.test(value)) {
+          const octets = value.split('.');
+          for (const octet of octets) {
+            if (parseInt(octet) > 255) {
+              callback(new Error('IP地址格式不正确'));
+              return;
+            }
+          }
+          callback();
+        } else {
+          callback(new Error('IP地址格式不正确，支持: 1.2.3.4 或 1.2.3.0/24'));
+        }
+      },
+      trigger: 'blur'
+    }
   ]
 };
 

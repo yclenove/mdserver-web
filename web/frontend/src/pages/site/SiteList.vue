@@ -284,20 +284,45 @@
         <!-- 域名管理 -->
         <el-tab-pane label="域名管理" name="domain">
           <div class="domain-manage">
+            <el-alert
+              :title="`已绑定 ${domainList.length} 个域名`"
+              type="info"
+              :closable="false"
+              show-icon
+              style="margin-bottom: 16px"
+            />
             <el-row :gutter="16" style="margin-bottom: 16px">
-              <el-col :span="16">
+              <el-col :span="12">
                 <el-input v-model="newDomain" placeholder="输入域名，如 example.com" @keyup.enter="addDomain" />
               </el-col>
-              <el-col :span="8">
-                <el-button type="primary" @click="addDomain" :loading="domainLoading">添加域名</el-button>
+              <el-col :span="6">
+                <el-input v-model="newDomainPort" placeholder="端口(默认80)" />
+              </el-col>
+              <el-col :span="6">
+                <el-button type="primary" @click="addDomain" :loading="domainLoading" style="width: 100%">
+                  <el-icon><Plus /></el-icon> 添加域名
+                </el-button>
               </el-col>
             </el-row>
+
+            <el-input
+              v-model="batchDomains"
+              type="textarea"
+              :rows="3"
+              placeholder="批量添加域名，每行一个，如:&#10;example.com&#10;www.example.com&#10;api.example.com"
+              style="margin-bottom: 8px"
+            />
+            <el-button type="success" size="small" @click="batchAddDomains" :loading="domainLoading" style="margin-bottom: 16px">
+              批量添加
+            </el-button>
+
             <el-table :data="domainList" stripe v-loading="domainLoading">
               <el-table-column prop="name" label="域名" min-width="200" />
               <el-table-column prop="port" label="端口" width="100" />
-              <el-table-column label="操作" width="100">
+              <el-table-column label="操作" width="120">
                 <template #default="{ row }">
-                  <el-button type="danger" link @click="removeDomain(row)">删除</el-button>
+                  <el-button type="primary" link size="small" @click="copyDomain(row)">复制</el-button>
+                  <el-button type="danger" link size="small" @click="removeDomain(row)">删除</el-button>
                 </template>
               </el-table-column>
             </el-table>
@@ -307,6 +332,15 @@
         <!-- SSL证书 -->
         <el-tab-pane label="SSL证书" name="ssl">
           <div class="ssl-manage" v-loading="sslLoading">
+            <el-alert
+              v-if="sslInfo && sslInfo.notAfter"
+              :title="getSslExpiryTitle(sslInfo.notAfter)"
+              :type="getSslExpiryType(sslInfo.notAfter)"
+              :closable="false"
+              show-icon
+              style="margin-bottom: 16px"
+            />
+
             <el-descriptions :column="2" border v-if="sslInfo" style="margin-bottom: 16px">
               <el-descriptions-item label="域名">{{ sslInfo.domain || currentSite.name }}</el-descriptions-item>
               <el-descriptions-item label="品牌">{{ sslInfo.brand || '-' }}</el-descriptions-item>
@@ -323,9 +357,18 @@
 
             <h4>证书操作</h4>
             <div class="ssl-actions">
-              <el-button type="primary" @click="forceHttps" :loading="sslActionLoading">强制HTTPS</el-button>
-              <el-button type="warning" @click="closeHttps" :loading="sslActionLoading">关闭HTTPS</el-button>
-              <el-button type="danger" @click="closeSsl" :loading="sslActionLoading">关闭SSL</el-button>
+              <el-button type="primary" @click="forceHttps" :loading="sslActionLoading">
+                <el-icon><Lock /></el-icon> 强制HTTPS
+              </el-button>
+              <el-button type="warning" @click="closeHttps" :loading="sslActionLoading">
+                <el-icon><Unlock /></el-icon> 关闭HTTPS
+              </el-button>
+              <el-button type="danger" @click="closeSsl" :loading="sslActionLoading">
+                <el-icon><Close /></el-icon> 关闭SSL
+              </el-button>
+              <el-button @click="fetchSslInfo" :loading="sslLoading">
+                <el-icon><Refresh /></el-icon> 刷新
+              </el-button>
             </div>
 
             <el-divider />
@@ -772,6 +815,8 @@ const phpVersions = ref([]);
 // 域名管理
 const domainList = ref([]);
 const newDomain = ref('');
+const newDomainPort = ref('');
+const batchDomains = ref('');
 const domainLoading = ref(false);
 
 // SSL
@@ -1238,15 +1283,55 @@ const addDomain = async () => {
   }
   domainLoading.value = true;
   try {
-    await addSiteDomain(currentSite.value.id, currentSite.value.name, newDomain.value.trim());
+    await addSiteDomain(currentSite.value.id, currentSite.value.name, newDomain.value.trim(), newDomainPort.value || '80');
     ElMessage.success('域名添加成功');
     newDomain.value = '';
+    newDomainPort.value = '';
     fetchDomains();
   } catch (e) {
     ElMessage.error('添加失败');
   } finally {
     domainLoading.value = false;
   }
+};
+
+const batchAddDomains = async () => {
+  if (!batchDomains.value.trim()) {
+    ElMessage.warning('请输入域名');
+    return;
+  }
+  const domains = batchDomains.value.split('\n').map(d => d.trim()).filter(d => d);
+  if (domains.length === 0) {
+    ElMessage.warning('请输入有效的域名');
+    return;
+  }
+
+  domainLoading.value = true;
+  let successCount = 0;
+  let errorCount = 0;
+
+  for (const domain of domains) {
+    try {
+      await addSiteDomain(currentSite.value.id, currentSite.value.name, domain, '80');
+      successCount++;
+    } catch {
+      errorCount++;
+    }
+  }
+
+  ElMessage.success(`批量添加完成: 成功 ${successCount} 个${errorCount > 0 ? `, 失败 ${errorCount} 个` : ''}`);
+  batchDomains.value = '';
+  fetchDomains();
+  domainLoading.value = false;
+};
+
+const copyDomain = (domain) => {
+  const text = domain.port === '80' || domain.port === 80 ? domain.name : `${domain.name}:${domain.port}`;
+  navigator.clipboard.writeText(text).then(() => {
+    ElMessage.success('已复制到剪贴板');
+  }).catch(() => {
+    ElMessage.error('复制失败');
+  });
 };
 
 const removeDomain = async (domain) => {
@@ -1261,6 +1346,29 @@ const removeDomain = async (domain) => {
 };
 
 // ==================== SSL证书 ====================
+
+const getSslExpiryType = (notAfter) => {
+  if (!notAfter) return 'info';
+  const expiry = new Date(notAfter);
+  const now = new Date();
+  const daysLeft = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+  if (daysLeft < 0) return 'error';
+  if (daysLeft < 7) return 'error';
+  if (daysLeft < 30) return 'warning';
+  return 'success';
+};
+
+const getSslExpiryTitle = (notAfter) => {
+  if (!notAfter) return '';
+  const expiry = new Date(notAfter);
+  const now = new Date();
+  const daysLeft = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+  if (daysLeft < 0) return `证书已过期 ${Math.abs(daysLeft)} 天`;
+  if (daysLeft === 0) return '证书今天到期';
+  if (daysLeft < 7) return `证书将在 ${daysLeft} 天后过期，请尽快续期`;
+  if (daysLeft < 30) return `证书将在 ${daysLeft} 天后过期`;
+  return `证书有效期还有 ${daysLeft} 天`;
+};
 
 const fetchSslInfo = async () => {
   sslLoading.value = true;
@@ -1301,6 +1409,7 @@ const forceHttps = async () => {
   try {
     await httpToHttps(currentSite.value.name);
     ElMessage.success('已强制HTTPS');
+    fetchSslInfo();
   } catch (e) {
     ElMessage.error('操作失败');
   } finally {
@@ -1313,6 +1422,7 @@ const closeHttps = async () => {
   try {
     await closeToHttps(currentSite.value.name);
     ElMessage.success('已关闭强制HTTPS');
+    fetchSslInfo();
   } catch (e) {
     ElMessage.error('操作失败');
   } finally {
