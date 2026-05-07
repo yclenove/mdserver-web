@@ -1,6 +1,6 @@
 {
-  "_files-9da20f1b.js": {
-    "file": "assets/files-9da20f1b.js",
+  "_files-2ffd25ad.js": {
+    "file": "assets/files-2ffd25ad.js",
     "imports": [
       "index.html"
     ]
@@ -142,7 +142,7 @@
       "src/pages/soft/Soft.vue",
       "src/pages/setting/Setting.vue"
     ],
-    "file": "assets/index-6f6c07fa.js",
+    "file": "assets/index-3dac37fd.js",
     "imports": [
       "_vendor-vue-8413b67a.js",
       "_vendor-element-57173e2c.js",
@@ -629,7 +629,7 @@
     "css": [
       "assets/Dashboard-17f7b5a2.css"
     ],
-    "file": "assets/Dashboard-ca4efd69.js",
+    "file": "assets/Dashboard-7e01a754.js",
     "imports": [
       "index.html",
       "_vendor-echarts-6433f102.js",
@@ -648,7 +648,7 @@
     "css": [
       "assets/Login-8ff6333b.css"
     ],
-    "file": "assets/Login-916f26e3.js",
+    "file": "assets/Login-9976dbf1.js",
     "imports": [
       "_vendor-vue-8413b67a.js",
       "_vendor-element-57173e2c.js",
@@ -666,7 +666,7 @@
     "css": [
       "assets/Crontab-a5e23fdb.css"
     ],
-    "file": "assets/Crontab-d7bc4d11.js",
+    "file": "assets/Crontab-804891e4.js",
     "imports": [
       "_vendor-element-57173e2c.js",
       "index.html",
@@ -687,13 +687,13 @@
     "dynamicImports": [
       "_vendor-monaco-85ffb45c.js"
     ],
-    "file": "assets/FileEdit-49f84c4a.js",
+    "file": "assets/FileEdit-2ae3fb20.js",
     "imports": [
       "_vendor-vue-8413b67a.js",
       "_vendor-element-57173e2c.js",
       "_vendor-monaco-85ffb45c.js",
       "index.html",
-      "_files-9da20f1b.js"
+      "_files-2ffd25ad.js"
     ],
     "isDynamicEntry": true,
     "src": "src/pages/files/FileEdit.vue"
@@ -706,11 +706,11 @@
     "css": [
       "assets/FileList-89ce9e5d.css"
     ],
-    "file": "assets/FileList-fe09afd5.js",
+    "file": "assets/FileList-92025bca.js",
     "imports": [
       "_vendor-vue-8413b67a.js",
       "_vendor-element-57173e2c.js",
-      "_files-9da20f1b.js",
+      "_files-2ffd25ad.js",
       "index.html",
       "_vendor-monaco-85ffb45c.js"
     ],
@@ -725,7 +725,7 @@
     "css": [
       "assets/Firewall-fd44794c.css"
     ],
-    "file": "assets/Firewall-fb5b3247.js",
+    "file": "assets/Firewall-6a7358f0.js",
     "imports": [
       "_vendor-element-57173e2c.js",
       "index.html",
@@ -743,7 +743,7 @@
     "css": [
       "assets/Logs-bcb198b3.css"
     ],
-    "file": "assets/Logs-142608d2.js",
+    "file": "assets/Logs-65e7744e.js",
     "imports": [
       "_vendor-element-57173e2c.js",
       "index.html",
@@ -761,7 +761,7 @@
     "css": [
       "assets/Monitor-ab5bb357.css"
     ],
-    "file": "assets/Monitor-2ff230f4.js",
+    "file": "assets/Monitor-45541b63.js",
     "imports": [
       "_vendor-element-57173e2c.js",
       "_vendor-echarts-6433f102.js",
@@ -780,7 +780,7 @@
     "css": [
       "assets/Setting-7e236598.css"
     ],
-    "file": "assets/Setting-1c0b0946.js",
+    "file": "assets/Setting-d5a8b610.js",
     "imports": [
       "_vendor-element-57173e2c.js",
       "index.html",
@@ -798,7 +798,7 @@
     "css": [
       "assets/SiteList-e85b51a7.css"
     ],
-    "file": "assets/SiteList-fd0988ef.js",
+    "file": "assets/SiteList-8c172e52.js",
     "imports": [
       "_vendor-vue-8413b67a.js",
       "_vendor-element-57173e2c.js",
@@ -809,14 +809,14 @@
     "src": "src/pages/site/SiteList.vue"
   },
   "src/pages/soft/Soft.css": {
-    "file": "assets/Soft-ee0d37d9.css",
+    "file": "assets/Soft-f00b226e.css",
     "src": "src/pages/soft/Soft.css"
   },
   "src/pages/soft/Soft.vue": {
     "css": [
-      "assets/Soft-ee0d37d9.css"
+      "assets/Soft-f00b226e.css"
     ],
-    "file": "assets/Soft-8ec3a23c.js",
+    "file": "assets/Soft-56819144.js",
     "imports": [
       "_vendor-element-57173e2c.js",
       "index.html",

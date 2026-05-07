@@ -318,8 +318,22 @@ const restartSoft = async () => {
   }
 };
 
-const editConfig = () => {
-  ElMessage.info('配置编辑功能开发中');
+const editConfig = async () => {
+  try {
+    const raw = currentSoft.value._raw || {};
+    const res = await runPlugin(raw.name, 'conf', raw.version || '');
+    if (res && res.data) {
+      ElMessage.success('配置已获取');
+      // 如果返回的是配置内容，可以显示在对话框中
+      if (typeof res.data === 'string') {
+        softLogs.value = res.data;
+      }
+    } else {
+      ElMessage.info('该插件暂无配置接口');
+    }
+  } catch {
+    ElMessage.info('该插件暂无配置接口');
+  }
 };
 
 const uninstallSoft = async () => {
