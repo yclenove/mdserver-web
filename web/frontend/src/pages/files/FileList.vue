@@ -325,6 +325,29 @@
       </template>
     </el-dialog>
 
+    <!-- 批量操作进度对话框 -->
+    <el-dialog v-model="batchProgressVisible" title="批量操作进度" width="400px" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false">
+      <div class="batch-progress">
+        <el-progress
+          :percentage="batchProgress.percent"
+          :status="batchProgress.status"
+          :stroke-width="20"
+          striped
+          striped-flow
+        />
+        <div class="progress-info">
+          <span>{{ batchProgress.text }}</span>
+          <span>{{ batchProgress.current }} / {{ batchProgress.total }}</span>
+        </div>
+        <div v-if="batchProgress.error" class="progress-error">
+          <el-alert :title="batchProgress.error" type="error" :closable="false" show-icon />
+        </div>
+      </div>
+      <template #footer>
+        <el-button v-if="batchProgress.done" type="primary" @click="batchProgressVisible = false">完成</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 远程下载对话框 -->
     <el-dialog v-model="remoteDownloadVisible" title="远程下载" width="500px">
       <el-form :model="remoteDownloadForm" label-width="100px">
@@ -388,6 +411,16 @@ const batchCopyDialogVisible = ref(false);
 const batchMoveDialogVisible = ref(false);
 const batchLoading = ref(false);
 const batchTargetPath = ref('');
+const batchProgressVisible = ref(false);
+const batchProgress = ref({
+  percent: 0,
+  current: 0,
+  total: 0,
+  text: '准备中...',
+  status: '',
+  error: '',
+  done: false
+});
 
 // 隐藏文件
 const showHidden = ref(false);
@@ -651,11 +684,44 @@ async function batchDelete() {
       cancelButtonText: '取消',
       type: 'warning',
     });
-    for (const row of selectedFiles.value) {
+
+    const files = [...selectedFiles.value];
+    const total = files.length;
+    let successCount = 0;
+    let errorCount = 0;
+
+    // 显示进度
+    batchProgress.value = {
+      percent: 0,
+      current: 0,
+      total,
+      text: '正在删除...',
+      status: '',
+      error: '',
+      done: false
+    };
+    batchProgressVisible.value = true;
+
+    for (let i = 0; i < files.length; i++) {
+      const row = files[i];
       const fullPath = currentPath.value === '/' ? '/' + row.name : currentPath.value + '/' + row.name;
-      await deleteFileApi(fullPath);
+      try {
+        await deleteFileApi(fullPath);
+        successCount++;
+      } catch {
+        errorCount++;
+      }
+      batchProgress.value.current = i + 1;
+      batchProgress.value.percent = Math.round(((i + 1) / total) * 100);
     }
-    ElMessage.success('批量删除成功');
+
+    batchProgress.value.text = `完成: 成功 ${successCount} 个${errorCount > 0 ? `, 失败 ${errorCount} 个` : ''}`;
+    batchProgress.value.status = errorCount > 0 ? 'warning' : 'success';
+    batchProgress.value.done = true;
+
+    if (errorCount === 0) {
+      ElMessage.success('批量删除成功');
+    }
     refreshList();
   } catch (error) {
     if (error !== 'cancel') {
@@ -676,20 +742,46 @@ async function confirmBatchCopy() {
     return;
   }
   batchLoading.value = true;
+  batchCopyDialogVisible.value = false;
+
+  const files = [...selectedFiles.value];
+  const total = files.length;
+  let successCount = 0;
+  let errorCount = 0;
+
+  batchProgress.value = {
+    percent: 0,
+    current: 0,
+    total,
+    text: '正在复制...',
+    status: '',
+    error: '',
+    done: false
+  };
+  batchProgressVisible.value = true;
+
   try {
-    let successCount = 0;
-    for (const row of selectedFiles.value) {
+    for (let i = 0; i < files.length; i++) {
+      const row = files[i];
       const srcPath = currentPath.value === '/' ? '/' + row.name : currentPath.value + '/' + row.name;
       const dstPath = batchTargetPath.value + '/' + row.name;
       try {
         await copyFile(srcPath, dstPath);
         successCount++;
       } catch {
-        // 继续处理其他文件
+        errorCount++;
       }
+      batchProgress.value.current = i + 1;
+      batchProgress.value.percent = Math.round(((i + 1) / total) * 100);
     }
-    ElMessage.success(`批量复制完成: 成功 ${successCount} 个`);
-    batchCopyDialogVisible.value = false;
+
+    batchProgress.value.text = `完成: 成功 ${successCount} 个${errorCount > 0 ? `, 失败 ${errorCount} 个` : ''}`;
+    batchProgress.value.status = errorCount > 0 ? 'warning' : 'success';
+    batchProgress.value.done = true;
+
+    if (errorCount === 0) {
+      ElMessage.success('批量复制完成');
+    }
     refreshList();
   } catch (error) {
     ElMessage.error('批量复制失败');
@@ -710,20 +802,46 @@ async function confirmBatchMove() {
     return;
   }
   batchLoading.value = true;
+  batchMoveDialogVisible.value = false;
+
+  const files = [...selectedFiles.value];
+  const total = files.length;
+  let successCount = 0;
+  let errorCount = 0;
+
+  batchProgress.value = {
+    percent: 0,
+    current: 0,
+    total,
+    text: '正在移动...',
+    status: '',
+    error: '',
+    done: false
+  };
+  batchProgressVisible.value = true;
+
   try {
-    let successCount = 0;
-    for (const row of selectedFiles.value) {
+    for (let i = 0; i < files.length; i++) {
+      const row = files[i];
       const srcPath = currentPath.value === '/' ? '/' + row.name : currentPath.value + '/' + row.name;
       const dstPath = batchTargetPath.value + '/' + row.name;
       try {
         await rename(srcPath, dstPath);
         successCount++;
       } catch {
-        // 继续处理其他文件
+        errorCount++;
       }
+      batchProgress.value.current = i + 1;
+      batchProgress.value.percent = Math.round(((i + 1) / total) * 100);
     }
-    ElMessage.success(`批量移动完成: 成功 ${successCount} 个`);
-    batchMoveDialogVisible.value = false;
+
+    batchProgress.value.text = `完成: 成功 ${successCount} 个${errorCount > 0 ? `, 失败 ${errorCount} 个` : ''}`;
+    batchProgress.value.status = errorCount > 0 ? 'warning' : 'success';
+    batchProgress.value.done = true;
+
+    if (errorCount === 0) {
+      ElMessage.success('批量移动完成');
+    }
     refreshList();
   } catch (error) {
     ElMessage.error('批量移动失败');
@@ -1033,6 +1151,20 @@ onMounted(() => {
       max-width: 200px;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+  }
+
+  .batch-progress {
+    .progress-info {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 12px;
+      font-size: 14px;
+      color: #606266;
+    }
+
+    .progress-error {
+      margin-top: 12px;
     }
   }
 }

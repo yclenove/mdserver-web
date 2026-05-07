@@ -200,6 +200,32 @@
               <div class="service-info">
                 <span class="service-name">{{ svc.name }}</span>
                 <span class="service-status">{{ svc.running ? '运行中' : '未运行' }}</span>
+                <span v-if="svc.version" class="service-version">v{{ svc.version }}</span>
+              </div>
+              <div class="service-actions">
+                <el-button-group size="small">
+                  <el-button
+                    v-if="!svc.running"
+                    type="success"
+                    :icon="VideoPlay"
+                    @click.stop="controlService(svc, 'start')"
+                    :loading="svc.loading"
+                  />
+                  <el-button
+                    v-if="svc.running"
+                    type="warning"
+                    :icon="VideoPause"
+                    @click.stop="controlService(svc, 'restart')"
+                    :loading="svc.loading"
+                  />
+                  <el-button
+                    v-if="svc.running"
+                    type="danger"
+                    :icon="SwitchButton"
+                    @click.stop="controlService(svc, 'stop')"
+                    :loading="svc.loading"
+                  />
+                </el-button-group>
               </div>
               <div class="service-dot" :class="svc.running ? 'dot-green' : 'dot-red'"></div>
             </div>
@@ -296,9 +322,10 @@
 import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { VideoPlay, VideoPause, SwitchButton } from '@element-plus/icons-vue';
 import { useAppStore } from '@/stores/app';
 import * as echarts from 'echarts';
-import { getIndexPluginList, restartPanelApi, clearLogs as apiClearLogs } from '@/api/index';
+import { getIndexPluginList, restartPanelApi, clearLogs as apiClearLogs, runPlugin } from '@/api/index';
 
 const router = useRouter();
 const appStore = useAppStore();
@@ -328,11 +355,30 @@ async function refreshServices() {
       serviceList.value = res.data.map(item => ({
         name: item.title || item.name,
         running: !!item.setup,
-        icon: serviceIcons[item.name?.toLowerCase()] || 'Box'
+        icon: serviceIcons[item.name?.toLowerCase()] || 'Box',
+        version: item.version || '',
+        loading: false
       }));
     }
   } catch {
     serviceList.value = [];
+  }
+}
+
+async function controlService(svc, action) {
+  const actionNames = { start: '启动', stop: '停止', restart: '重启' };
+  try {
+    await ElMessageBox.confirm(`确定要${actionNames[action]} ${svc.name} 吗？`, '操作确认', { type: 'warning' });
+    svc.loading = true;
+    await runPlugin(svc.name, action, svc.version);
+    ElMessage.success(`${svc.name} ${actionNames[action]}命令已执行`);
+    setTimeout(() => refreshServices(), 2000);
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error(`${actionNames[action]}失败`);
+    }
+  } finally {
+    svc.loading = false;
   }
 }
 
@@ -852,6 +898,22 @@ function handleResize() {
         .service-status {
           font-size: 11px;
           color: #909399;
+        }
+
+        .service-version {
+          font-size: 11px;
+          color: #409eff;
+          margin-left: 4px;
+        }
+      }
+
+      .service-actions {
+        flex-shrink: 0;
+
+        .el-button-group {
+          .el-button {
+            padding: 5px 8px;
+          }
         }
       }
 

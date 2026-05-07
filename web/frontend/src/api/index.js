@@ -407,6 +407,26 @@ export function saveSiteRewrite(path, dataContent, encoding) {
   return request({ url: '/site/set_rewrite', method: 'post', data });
 }
 
+// 获取Rewrite模板列表
+export function getRewriteList() {
+  return request({ url: '/site/get_rewrite_list', method: 'post' });
+}
+
+// 获取Rewrite模板内容
+export function getRewriteTpl(name) {
+  const data = new URLSearchParams();
+  data.append('name', name);
+  return request({ url: '/site/get_rewrite_tpl', method: 'post', data });
+}
+
+// 设置Rewrite模板
+export function setRewriteTpl(name, dataContent) {
+  const data = new URLSearchParams();
+  data.append('name', name);
+  data.append('data', dataContent);
+  return request({ url: '/site/set_rewrite_tpl', method: 'post', data });
+}
+
 // 日志开关
 export function toggleSiteLogs(id) {
   const data = new URLSearchParams();

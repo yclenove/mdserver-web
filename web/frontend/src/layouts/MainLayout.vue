@@ -1,9 +1,17 @@
 <template>
   <el-container class="main-layout">
+    <!-- 移动端遮罩 -->
+    <div
+      v-if="isMobile && !appStore.sidebarCollapsed"
+      class="sidebar-overlay"
+      @click="appStore.toggleSidebar"
+    />
+
     <!-- 侧边栏 -->
     <el-aside
       :width="appStore.sidebarCollapsed ? '64px' : '210px'"
       class="sidebar"
+      :class="{ 'mobile-sidebar': isMobile }"
     >
       <div class="sidebar-header">
         <el-icon class="logo-icon"><Monitor /></el-icon>
@@ -18,6 +26,7 @@
         active-text-color="#ffffff"
         :collapse-transition="false"
         router
+        @select="handleMenuSelect"
       >
         <template v-for="route in menuRoutes" :key="route.path">
           <el-menu-item :index="'/' + route.path">
@@ -40,7 +49,7 @@
             <Fold v-if="!appStore.sidebarCollapsed" />
             <Expand v-else />
           </el-icon>
-          <el-breadcrumb separator="/">
+          <el-breadcrumb separator="/" class="breadcrumb-hide-mobile">
             <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
             <el-breadcrumb-item v-if="currentMeta.title">
               {{ currentMeta.title }}
@@ -92,7 +101,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAppStore } from '@/stores/app';
 import { useUserStore } from '@/stores/user';
@@ -101,6 +110,32 @@ const route = useRoute();
 const router = useRouter();
 const appStore = useAppStore();
 const userStore = useUserStore();
+
+// 移动端检测
+const isMobile = ref(window.innerWidth < 768);
+
+const checkMobile = () => {
+  isMobile.value = window.innerWidth < 768;
+  if (isMobile.value && !appStore.sidebarCollapsed) {
+    appStore.toggleSidebar();
+  }
+};
+
+onMounted(() => {
+  window.addEventListener('resize', checkMobile);
+  checkMobile();
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', checkMobile);
+});
+
+// 移动端菜单选择后自动收起
+const handleMenuSelect = () => {
+  if (isMobile.value) {
+    appStore.toggleSidebar();
+  }
+};
 
 // 获取当前路由路径，用于菜单高亮
 const currentRoute = computed(() => {
@@ -150,6 +185,17 @@ function handleCommand(command) {
   overflow: hidden;
 }
 
+// 移动端遮罩
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
 // 侧边栏
 .sidebar {
   background-color: #304156;
@@ -163,6 +209,14 @@ function handleCommand(command) {
 
   .el-menu {
     border-right: none;
+  }
+
+  &.mobile-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 1000;
   }
 }
 
@@ -224,6 +278,12 @@ function handleCommand(command) {
       color: #409eff;
     }
   }
+
+  .breadcrumb-hide-mobile {
+    @media (max-width: 767px) {
+      display: none;
+    }
+  }
 }
 
 .header-right {
@@ -266,6 +326,10 @@ function handleCommand(command) {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+
+    @media (max-width: 767px) {
+      display: none;
+    }
   }
 }
 

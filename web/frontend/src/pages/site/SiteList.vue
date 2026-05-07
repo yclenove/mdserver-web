@@ -390,14 +390,32 @@
         <!-- 伪静态 -->
         <el-tab-pane label="伪静态" name="rewrite">
           <div class="rewrite-manage" v-loading="rewriteLoading">
+            <div class="rewrite-toolbar">
+              <el-select
+                v-model="selectedRewriteTpl"
+                placeholder="选择伪静态模板"
+                style="width: 200px"
+                @change="loadRewriteTpl"
+                clearable
+              >
+                <el-option
+                  v-for="tpl in rewriteTplList"
+                  :key="tpl"
+                  :label="tpl"
+                  :value="tpl"
+                />
+              </el-select>
+              <el-button @click="fetchRewriteTpls" :loading="rewriteTplLoading">刷新模板</el-button>
+            </div>
             <el-input
               v-model="rewriteContent"
               type="textarea"
               :rows="15"
-              placeholder="输入伪静态规则"
+              placeholder="输入伪静态规则，或从上方选择模板"
             />
             <div style="margin-top: 8px; text-align: right">
               <el-button type="primary" @click="saveRewrite" :loading="rewriteLoading">保存</el-button>
+              <el-button @click="fetchRewriteConf">刷新</el-button>
             </div>
           </div>
         </el-tab-pane>
@@ -445,6 +463,13 @@
         <!-- 密码访问 -->
         <el-tab-pane label="密码访问" name="password">
           <div class="password-manage">
+            <el-alert
+              :title="pwdProtectEnabled ? '密码访问已开启' : '密码访问未开启'"
+              :type="pwdProtectEnabled ? 'success' : 'info'"
+              :closable="false"
+              show-icon
+              style="margin-bottom: 16px"
+            />
             <el-form :model="pwdForm" label-width="100px" style="max-width: 500px">
               <el-form-item label="访问用户名">
                 <el-input v-model="pwdForm.username" placeholder="输入用户名" />
@@ -454,7 +479,7 @@
               </el-form-item>
               <el-form-item>
                 <el-button type="primary" @click="enablePwdProtect">开启密码访问</el-button>
-                <el-button type="warning" @click="disablePwdProtect">关闭密码访问</el-button>
+                <el-button type="warning" :disabled="!pwdProtectEnabled" @click="disablePwdProtect">关闭密码访问</el-button>
               </el-form-item>
             </el-form>
           </div>
@@ -692,6 +717,8 @@ import {
   closeSiteHasPwd,
   getSiteRewriteConf,
   saveSiteRewrite,
+  getRewriteList,
+  getRewriteTpl,
   getProxyList,
   setProxy,
   setProxyStatus as apiSetProxyStatus,
@@ -766,6 +793,9 @@ const logLoading = ref(false);
 // 伪静态
 const rewriteContent = ref('');
 const rewriteLoading = ref(false);
+const rewriteTplList = ref([]);
+const rewriteTplLoading = ref(false);
+const selectedRewriteTpl = ref('');
 
 // 配置文件
 const configContent = ref('');
@@ -778,6 +808,7 @@ const limitLoading = ref(false);
 
 // 密码访问
 const pwdForm = ref({ username: '', password: '' });
+const pwdProtectEnabled = ref(false);
 
 // 反向代理
 const proxyList = ref([]);
@@ -1055,6 +1086,7 @@ const handleManageTabChange = (tab) => {
       break;
     case 'rewrite':
       fetchRewriteConf();
+      fetchRewriteTpls();
       break;
     case 'config':
       fetchSiteConfig();
@@ -1070,6 +1102,10 @@ const handleManageTabChange = (tab) => {
       break;
     case 'security':
       fetchSecurity();
+      break;
+    case 'password':
+      pwdProtectEnabled.value = false;
+      pwdForm.value = { username: '', password: '' };
       break;
   }
 };
@@ -1383,6 +1419,33 @@ const saveRewrite = async () => {
   }
 };
 
+const fetchRewriteTpls = async () => {
+  rewriteTplLoading.value = true;
+  try {
+    const res = await getRewriteList();
+    if (res && Array.isArray(res.data)) {
+      rewriteTplList.value = res.data;
+    }
+  } catch {
+    rewriteTplList.value = [];
+  } finally {
+    rewriteTplLoading.value = false;
+  }
+};
+
+const loadRewriteTpl = async (name) => {
+  if (!name) return;
+  try {
+    const res = await getRewriteTpl(name);
+    if (res && res.data) {
+      rewriteContent.value = res.data;
+      ElMessage.success(`已加载 ${name} 模板`);
+    }
+  } catch {
+    ElMessage.error('加载模板失败');
+  }
+};
+
 // ==================== 配置文件 ====================
 
 const fetchSiteConfig = async () => {
@@ -1471,6 +1534,7 @@ const enablePwdProtect = async () => {
   }
   try {
     await setSiteHasPwd(currentSite.value.id, pwdForm.value.username, pwdForm.value.password);
+    pwdProtectEnabled.value = true;
     ElMessage.success('密码访问已开启');
   } catch (e) {
     ElMessage.error('开启失败');
@@ -1480,8 +1544,9 @@ const enablePwdProtect = async () => {
 const disablePwdProtect = async () => {
   try {
     await closeSiteHasPwd(currentSite.value.id);
-    ElMessage.success('密码访问已关闭');
+    pwdProtectEnabled.value = false;
     pwdForm.value = { username: '', password: '' };
+    ElMessage.success('密码访问已关闭');
   } catch (e) {
     ElMessage.error('关闭失败');
   }
@@ -1953,6 +2018,15 @@ onMounted(() => {
       align-items: center;
       margin-bottom: 12px;
       font-weight: 600;
+    }
+  }
+
+  .rewrite-manage {
+    .rewrite-toolbar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 12px;
     }
   }
 
