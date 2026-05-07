@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'web'))
 def app():
     """创建 Flask 应用实例"""
     try:
-        from web.app import create_app
+        from app import create_app
         app = create_app()
         app.config['TESTING'] = True
         with app.app_context():

@@ -10,8 +10,6 @@ import os
 import time
 import logging
 import threading
-from datetime import datetime
-
 logger = logging.getLogger(__name__)
 
 

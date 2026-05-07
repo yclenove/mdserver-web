@@ -63,7 +63,9 @@ class PluginDependencyManager:
         Args:
             name: 插件名称
             version: 插件版本
-            dependencies: 依赖列表，格式: [{'name': 'xxx', 'version': '>=1.0', 'optional': False}]
+            dependencies: 依赖列表，格式:
+                [{'name': 'xxx', 'version': '>=1.0',
+                  'optional': False}]
         """
         with self._lock:
             if name not in self._nodes:
@@ -91,7 +93,11 @@ class PluginDependencyManager:
                         self._nodes[dep_name] = DependencyNode(dep_name)
 
                     # 添加反向依赖
-                    if name not in [d['name'] for d in self._nodes[dep_name].dependents]:
+                    dep_names = [
+                        d['name'] for d in
+                        self._nodes[dep_name].dependents
+                    ]
+                    if name not in dep_names:
                         self._nodes[dep_name].dependents.append({
                             'name': name,
                             'version': version,

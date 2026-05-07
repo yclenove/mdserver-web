@@ -66,11 +66,24 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
-import * as monaco from 'monaco-editor';
 import {
   Search, Edit, Position, Fold, Expand,
   RefreshLeft, RefreshRight,
 } from '@element-plus/icons-vue';
+
+// Monaco Editor 延迟加载
+let monaco = null;
+let monacoLoadPromise = null;
+
+async function loadMonaco() {
+  if (monaco) return monaco;
+  if (monacoLoadPromise) return monacoLoadPromise;
+  monacoLoadPromise = import('monaco-editor').then((module) => {
+    monaco = module;
+    return module;
+  });
+  return monacoLoadPromise;
+}
 
 const props = defineProps({
   modelValue: {
@@ -167,10 +180,12 @@ function detectLanguage(filename) {
 }
 
 // 初始化编辑器
-function initEditor() {
+async function initEditor() {
   if (!editorContainer.value) return;
 
-  editor = monaco.editor.create(editorContainer.value, {
+  const monacoLib = await loadMonaco();
+
+  editor = monacoLib.editor.create(editorContainer.value, {
     value: props.modelValue,
     language: props.language,
     theme: props.theme,
@@ -207,7 +222,7 @@ function initEditor() {
   });
 
   // Ctrl+S 保存快捷键
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+  editor.addCommand(monacoLib.KeyMod.CtrlCmd | monacoLib.KeyCode.KeyS, () => {
     emit('save', editor.getValue());
   });
 }
@@ -270,7 +285,9 @@ function handleLanguageChange(lang) {
 
 // 主题切换
 function handleThemeChange(theme) {
-  monaco.editor.setTheme(theme);
+  if (monaco) {
+    monaco.editor.setTheme(theme);
+  }
 }
 
 // 更新编辑器选项
@@ -294,7 +311,7 @@ function getValue() {
 
 // 设置语言
 function setLanguage(lang) {
-  if (editor) {
+  if (editor && monaco) {
     const model = editor.getModel();
     if (model) {
       monaco.editor.setModelLanguage(model, lang);
@@ -322,7 +339,9 @@ watch(
 watch(
   () => props.theme,
   (newTheme) => {
-    monaco.editor.setTheme(newTheme);
+    if (monaco) {
+      monaco.editor.setTheme(newTheme);
+    }
   }
 );
 

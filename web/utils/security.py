@@ -197,14 +197,26 @@ def sanitize_html(text):
     if not text:
         return ""
 
-    # 移除危险标签
-    dangerous_tags = ['script', 'iframe', 'object', 'embed', 'form']
-    for tag in dangerous_tags:
+    # 移除危险标签及其内容
+    remove_tags = ['script', 'iframe', 'object']
+    for tag in remove_tags:
         text = re.sub(
             f'<{tag}[^>]*>.*?</{tag}>', '', text,
             flags=re.IGNORECASE | re.DOTALL,
         )
         text = re.sub(f'<{tag}[^>]*/>', '', text, flags=re.IGNORECASE)
+        text = re.sub(f'<{tag}[^>]*>', '', text, flags=re.IGNORECASE)
+
+    # 移除自闭合/空元素标签（如 embed）
+    void_tags = ['embed']
+    for tag in void_tags:
+        text = re.sub(f'<{tag}[^>]*/?>', '', text, flags=re.IGNORECASE)
+
+    # 剥离标签但保留内容（如 form）
+    strip_tags = ['form']
+    for tag in strip_tags:
+        text = re.sub(f'<{tag}[^>]*>', '', text, flags=re.IGNORECASE)
+        text = re.sub(f'</{tag}>', '', text, flags=re.IGNORECASE)
 
     # 移除事件属性
     text = re.sub(r'\s*on\w+\s*=\s*["\'][^"\']*["\']', '', text, flags=re.IGNORECASE)

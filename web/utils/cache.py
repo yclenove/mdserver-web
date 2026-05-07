@@ -203,7 +203,8 @@ class MemoryCache:
                 self._cache.keys(),
                 key=lambda k: self._cache[k]['created_at']
             )
-            for key in sorted_keys[:len(sorted_keys) // 4]:
+            evict_count = max(1, len(sorted_keys) // 4)
+            for key in sorted_keys[:evict_count]:
                 del self._cache[key]
                 self._stats['evictions'] += 1
 

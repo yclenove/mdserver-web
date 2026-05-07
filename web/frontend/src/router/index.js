@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useUserStore } from '@/stores/user';
+import { ElMessage } from 'element-plus';
 
 // 布局组件
 import MainLayout from '@/layouts/MainLayout.vue';
@@ -112,6 +113,14 @@ router.beforeEach((to, from, next) => {
     next({ name: 'Dashboard' });
   } else {
     next();
+  }
+});
+
+// 路由错误处理
+router.onError((error) => {
+  console.error('路由错误:', error);
+  if (error.message.includes('Failed to fetch dynamically imported module')) {
+    ElMessage.error('页面加载失败，请刷新重试');
   }
 });
 

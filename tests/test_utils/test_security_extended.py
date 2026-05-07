@@ -315,9 +315,9 @@ class TestSecurityCsrfToken:
     def test_verify_csrf_token_timing_safe(self):
         """测试CSRF令牌验证使用时间安全比较"""
         from utils.security import verify_csrf_token
+        from utils.security import generate_csrf_token
         # 验证相同令牌
         token = generate_csrf_token()
-        from utils.security import generate_csrf_token
         assert verify_csrf_token(token, token) is True
 
     def test_verify_csrf_token_different_length(self):

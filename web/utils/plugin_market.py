@@ -9,7 +9,6 @@ import json
 import os
 import time
 import logging
-import hashlib
 import threading
 from collections import defaultdict
 

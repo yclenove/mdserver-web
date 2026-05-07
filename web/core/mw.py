@@ -541,9 +541,8 @@ def readFile(filename, use_cache=False):
                 return _file_cache[filename]
 
     try:
-        fp = open(filename, "r")
-        fBody = fp.read()
-        fp.close()
+        with open(filename, "r") as fp:
+            fBody = fp.read()
 
         if use_cache:
             _file_cache[filename] = fBody
@@ -580,9 +579,8 @@ def writeFile(filename, content, mode="w+"):
         成功返回 True，失败返回 False
     """
     try:
-        fp = open(filename, mode)
-        fp.write(content)
-        fp.close()
+        with open(filename, mode) as fp:
+            fp.write(content)
 
         # 写入后自动清除该文件的缓存
         clearFileCache(filename)
