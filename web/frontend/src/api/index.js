@@ -246,3 +246,97 @@ export function togglePanel() {
 export function setIpv6Status() {
   return request({ url: '/setting/set_ipv6_status', method: 'post' });
 }
+
+// ==================== 软件/插件管理 ====================
+
+// 获取插件列表
+export function getPluginList(params = {}) {
+  return request({ url: '/plugins/list', method: 'get', params });
+}
+
+// 获取首页插件列表
+export function getIndexPluginList() {
+  return request({ url: '/plugins/index_list', method: 'post' });
+}
+
+// 安装插件
+export function installPlugin(name, version) {
+  const data = new URLSearchParams();
+  data.append('name', name);
+  data.append('version', version);
+  return request({ url: '/plugins/install', method: 'post', data });
+}
+
+// 卸载插件
+export function uninstallPlugin(name, version) {
+  const data = new URLSearchParams();
+  data.append('name', name);
+  data.append('version', version);
+  return request({ url: '/plugins/uninstall', method: 'post', data });
+}
+
+// 设置插件首页展示
+export function setPluginIndex(name, status, version) {
+  const data = new URLSearchParams();
+  data.append('name', name);
+  data.append('status', status);
+  data.append('version', version);
+  return request({ url: '/plugins/set_index', method: 'post', data });
+}
+
+// 运行插件回调
+export function runPlugin(name, func, version, args, script) {
+  const data = new URLSearchParams();
+  data.append('name', name);
+  data.append('func', func);
+  data.append('version', version || '');
+  data.append('args', args || '');
+  data.append('script', script || 'index');
+  return request({ url: '/plugins/run', method: 'post', data });
+}
+
+// ==================== 文件管理 ====================
+
+// 获取目录列表
+export function getDirList(path, showHidden) {
+  const data = new URLSearchParams();
+  data.append('path', path || '/');
+  data.append('showHidden', showHidden ? '1' : '0');
+  return request({ url: '/files/get_dir', method: 'post', data });
+}
+
+// 获取文件内容
+export function getFileBody(path) {
+  const data = new URLSearchParams();
+  data.append('path', path);
+  return request({ url: '/files/get_body', method: 'post', data });
+}
+
+// 保存文件内容
+export function saveFileBody(path, data_content) {
+  const data = new URLSearchParams();
+  data.append('path', path);
+  data.append('data', data_content);
+  return request({ url: '/files/save_body', method: 'post', data });
+}
+
+// 删除文件
+export function deleteFile(path) {
+  const data = new URLSearchParams();
+  data.append('path', path);
+  return request({ url: '/files/delete', method: 'post', data });
+}
+
+// 创建目录
+export function createDir(path) {
+  const data = new URLSearchParams();
+  data.append('path', path);
+  return request({ url: '/files/create_dir', method: 'post', data });
+}
+
+// 创建文件
+export function createFile(path) {
+  const data = new URLSearchParams();
+  data.append('path', path);
+  return request({ url: '/files/create_file', method: 'post', data });
+}

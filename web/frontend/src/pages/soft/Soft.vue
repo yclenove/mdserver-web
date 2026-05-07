@@ -159,6 +159,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { getPluginList, installPlugin, uninstallPlugin, runPlugin } from '@/api/index';
 
 const softList = ref([]);
 const loading = ref(false);
@@ -202,106 +203,46 @@ const filteredSoftList = computed(() => {
   return list;
 });
 
+// 软件分类映射
+const categoryMap = {
+  'openresty': 'web', 'nginx': 'web',
+  'mysql': 'database', 'mariadb': 'database', 'pgsql': 'database', 'mongodb': 'database',
+  'php': 'language', 'node': 'language', 'golang': 'language', 'java': 'language',
+  'redis': 'cache', 'memcached': 'cache',
+  'ftp': 'storage', 'rsync': 'storage',
+};
+
+function getCategory(name) {
+  const lower = (name || '').toLowerCase();
+  for (const [key, cat] of Object.entries(categoryMap)) {
+    if (lower.includes(key)) return cat;
+  }
+  return 'tools';
+}
+
 const fetchSoftList = async () => {
   loading.value = true;
   try {
-    // 模拟软件列表数据
-    softList.value = [
-      {
-        id: 1,
-        name: 'Nginx',
-        version: '1.24.0',
-        description: '高性能HTTP和反向代理服务器',
-        category: 'web',
-        icon: 'Connection',
-        icon_color: '#67c23a',
-        installed: true,
-        status: 'running',
-        install_path: '/www/server/nginx',
-        config_path: '/www/server/nginx/conf/nginx.conf'
-      },
-      {
-        id: 2,
-        name: 'MySQL',
-        version: '8.0.35',
-        description: '流行的关系型数据库管理系统',
-        category: 'database',
-        icon: 'Coin',
-        icon_color: '#409eff',
-        installed: true,
-        status: 'running',
-        install_path: '/www/server/mysql',
-        config_path: '/etc/my.cnf'
-      },
-      {
-        id: 3,
-        name: 'PHP',
-        version: '8.2.13',
-        description: '广泛使用的开源脚本语言',
-        category: 'language',
-        icon: 'Document',
-        icon_color: '#9b59b6',
-        installed: true,
-        status: 'running',
-        install_path: '/www/server/php/82',
-        config_path: '/www/server/php/82/etc/php.ini'
-      },
-      {
-        id: 4,
-        name: 'Redis',
-        version: '7.2.3',
-        description: '开源的内存数据结构存储',
-        category: 'cache',
-        icon: 'Coin',
-        icon_color: '#e74c3c',
-        installed: true,
-        status: 'running',
-        install_path: '/www/server/redis',
-        config_path: '/www/server/redis/redis.conf'
-      },
-      {
-        id: 5,
-        name: 'Node.js',
-        version: '20.10.0',
-        description: 'JavaScript运行时环境',
-        category: 'language',
-        icon: 'Connection',
-        icon_color: '#27ae60',
-        installed: false
-      },
-      {
-        id: 6,
-        name: 'PostgreSQL',
-        version: '16.1',
-        description: '功能强大的开源关系型数据库',
-        category: 'database',
-        icon: 'Coin',
-        icon_color: '#336791',
-        installed: false
-      },
-      {
-        id: 7,
-        name: 'MongoDB',
-        version: '7.0.4',
-        description: 'NoSQL文档数据库',
-        category: 'database',
+    const res = await getPluginList({ type: '0', p: '1' });
+    if (res && res.data) {
+      softList.value = (Array.isArray(res.data) ? res.data : []).map((item, idx) => ({
+        id: idx + 1,
+        name: item.title || item.name || 'Unknown',
+        version: item.versions ? item.versions[item.versions.length - 1] : '-',
+        description: item.description || item.ps || '',
+        category: getCategory(item.name),
         icon: 'Box',
-        icon_color: '#47a248',
-        installed: false
-      },
-      {
-        id: 8,
-        name: 'Memcached',
-        version: '1.6.22',
-        description: '高性能分布式内存对象缓存系统',
-        category: 'cache',
-        icon: 'Coin',
-        icon_color: '#f39c12',
-        installed: false
-      }
-    ];
-  } catch (error) {
-    ElMessage.error('获取软件列表失败');
+        icon_color: '#409eff',
+        installed: !!item.setup,
+        status: item.setup ? 'running' : 'stopped',
+        install_path: item.install_path || '',
+        config_path: item.config_path || '',
+        _raw: item,
+      }));
+    }
+  } catch {
+    // API 调用失败时使用默认列表
+    softList.value = [];
   } finally {
     loading.value = false;
   }
@@ -318,10 +259,11 @@ const manageSoft = (soft) => {
 };
 
 const installSoft = (soft) => {
+  const raw = soft._raw || {};
   installForm.value = {
     name: soft.name,
-    version: soft.version,
-    versions: [soft.version, 'latest'],
+    version: raw.default_ver || soft.version,
+    versions: raw.versions || [soft.version],
     path: '/www/server'
   };
   installDialogVisible.value = true;
@@ -330,24 +272,34 @@ const installSoft = (soft) => {
 const confirmInstall = async () => {
   installing.value = true;
   try {
+    const raw = currentSoft.value._raw || {};
+    await installPlugin(raw.name || installForm.value.name, installForm.value.version);
     ElMessage.success(`${installForm.value.name} 安装任务已提交`);
     installDialogVisible.value = false;
     fetchSoftList();
-  } catch (error) {
+  } catch {
     ElMessage.error('安装失败');
   } finally {
     installing.value = false;
   }
 };
 
-const startSoft = () => {
-  currentSoft.value.status = 'running';
-  ElMessage.success(`${currentSoft.value.name} 已启动`);
+const startSoft = async () => {
+  try {
+    const raw = currentSoft.value._raw || {};
+    await runPlugin(raw.name, 'start', raw.version || '');
+    currentSoft.value.status = 'running';
+    ElMessage.success(`${currentSoft.value.name} 已启动`);
+  } catch {
+    ElMessage.error('启动失败');
+  }
 };
 
 const stopSoft = async () => {
   try {
     await ElMessageBox.confirm(`确定要停止 ${currentSoft.value.name} 吗？`, '停止确认');
+    const raw = currentSoft.value._raw || {};
+    await runPlugin(raw.name, 'stop', raw.version || '');
     currentSoft.value.status = 'stopped';
     ElMessage.success(`${currentSoft.value.name} 已停止`);
   } catch (error) {
@@ -355,8 +307,14 @@ const stopSoft = async () => {
   }
 };
 
-const restartSoft = () => {
-  ElMessage.success(`${currentSoft.value.name} 已重启`);
+const restartSoft = async () => {
+  try {
+    const raw = currentSoft.value._raw || {};
+    await runPlugin(raw.name, 'restart', raw.version || '');
+    ElMessage.success(`${currentSoft.value.name} 已重启`);
+  } catch {
+    ElMessage.error('重启失败');
+  }
 };
 
 const editConfig = () => {
@@ -370,6 +328,8 @@ const uninstallSoft = async () => {
       '卸载确认',
       { type: 'warning' }
     );
+    const raw = currentSoft.value._raw || {};
+    await uninstallPlugin(raw.name, raw.version || '');
     ElMessage.success(`${currentSoft.value.name} 已卸载`);
     manageDialogVisible.value = false;
     fetchSoftList();
