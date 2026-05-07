@@ -179,6 +179,35 @@
       </el-col>
     </el-row>
 
+    <!-- 服务状态 -->
+    <el-row :gutter="16" class="service-row">
+      <el-col :xs="24">
+        <div class="page-card">
+          <div class="page-header">
+            <h3 class="page-title">服务状态</h3>
+            <el-button icon="Refresh" size="small" @click="refreshServices">刷新</el-button>
+          </div>
+          <div class="service-grid">
+            <div
+              v-for="svc in serviceList"
+              :key="svc.name"
+              class="service-item"
+              :class="{ 'service-running': svc.running, 'service-stopped': !svc.running }"
+            >
+              <div class="service-icon">
+                <el-icon :size="20"><component :is="svc.icon || 'Box'" /></el-icon>
+              </div>
+              <div class="service-info">
+                <span class="service-name">{{ svc.name }}</span>
+                <span class="service-status">{{ svc.running ? '运行中' : '未运行' }}</span>
+              </div>
+              <div class="service-dot" :class="svc.running ? 'dot-green' : 'dot-red'"></div>
+            </div>
+          </div>
+        </div>
+      </el-col>
+    </el-row>
+
     <!-- 图表区域 -->
     <el-row :gutter="16" class="chart-row">
       <el-col :xs="24" :lg="16">
@@ -222,9 +251,42 @@
 import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { useAppStore } from '@/stores/app';
 import * as echarts from 'echarts';
+import { getIndexPluginList } from '@/api/index';
 
 const appStore = useAppStore();
 const systemInfo = ref(appStore.systemInfo);
+
+// 服务列表
+const serviceList = ref([]);
+
+const serviceIcons = {
+  'openresty': 'Monitor',
+  'nginx': 'Monitor',
+  'mysql': 'Coin',
+  'mariadb': 'Coin',
+  'pgsql': 'Coin',
+  'mongodb': 'Coin',
+  'php': 'Document',
+  'redis': 'Connection',
+  'memcached': 'Connection',
+  'node': 'Promotion',
+  'ftp': 'Upload',
+};
+
+async function refreshServices() {
+  try {
+    const res = await getIndexPluginList();
+    if (res && Array.isArray(res.data)) {
+      serviceList.value = res.data.map(item => ({
+        name: item.title || item.name,
+        running: !!item.setup,
+        icon: serviceIcons[item.name?.toLowerCase()] || 'Box'
+      }));
+    }
+  } catch {
+    serviceList.value = [];
+  }
+}
 const trendChartRef = ref(null);
 const chartTimeRange = ref('1h');
 
@@ -402,6 +464,7 @@ async function refreshData() {
 
 onMounted(async () => {
   await refreshData();
+  refreshServices();
   await nextTick();
   initTrendChart();
 
@@ -616,6 +679,88 @@ function handleResize() {
   .chart-container {
     width: 100%;
     height: 320px;
+  }
+
+  .service-row {
+    margin-bottom: 16px;
+  }
+
+  .service-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    padding: 8px 0;
+
+    .service-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      background: #f5f7fa;
+      transition: all 0.2s;
+
+      &:hover {
+        background: #ecf5ff;
+      }
+
+      &.service-running {
+        border-left: 3px solid #67c23a;
+      }
+
+      &.service-stopped {
+        border-left: 3px solid #dcdfe6;
+        opacity: 0.7;
+      }
+
+      .service-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #e4e7ed;
+        color: #606266;
+        flex-shrink: 0;
+      }
+
+      .service-info {
+        flex: 1;
+        min-width: 0;
+
+        .service-name {
+          display: block;
+          font-size: 13px;
+          font-weight: 500;
+          color: #303133;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .service-status {
+          font-size: 11px;
+          color: #909399;
+        }
+      }
+
+      .service-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+
+        &.dot-green {
+          background: #67c23a;
+          box-shadow: 0 0 6px rgba(103, 194, 58, 0.5);
+        }
+
+        &.dot-red {
+          background: #dcdfe6;
+        }
+      }
+    }
   }
 }
 </style>
