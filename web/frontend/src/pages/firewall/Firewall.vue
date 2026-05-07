@@ -41,9 +41,27 @@
             <span><el-icon><Connection /></el-icon> 端口规则</span>
           </template>
           <div class="tab-header">
-            <el-button type="primary" icon="Plus" @click="showAddPort">添加端口规则</el-button>
+            <div class="tab-header-left">
+              <el-button type="primary" icon="Plus" @click="showAddPort">添加端口规则</el-button>
+              <el-dropdown @command="quickAddPort" trigger="click">
+                <el-button icon="Promotion">快速放行 <el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item :command="{ port: '80', protocol: 'tcp' }">80 (HTTP)</el-dropdown-item>
+                    <el-dropdown-item :command="{ port: '443', protocol: 'tcp' }">443 (HTTPS)</el-dropdown-item>
+                    <el-dropdown-item :command="{ port: '22', protocol: 'tcp' }">22 (SSH)</el-dropdown-item>
+                    <el-dropdown-item :command="{ port: '3306', protocol: 'tcp' }">3306 (MySQL)</el-dropdown-item>
+                    <el-dropdown-item :command="{ port: '6379', protocol: 'tcp' }">6379 (Redis)</el-dropdown-item>
+                    <el-dropdown-item :command="{ port: '888', protocol: 'tcp' }">888 (面板)</el-dropdown-item>
+                    <el-dropdown-item :command="{ port: '8080', protocol: 'tcp' }">8080 (备用HTTP)</el-dropdown-item>
+                    <el-dropdown-item :command="{ port: '20-21', protocol: 'tcp' }">20-21 (FTP)</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
+            <el-input v-model="portSearch" placeholder="搜索端口..." clearable size="small" style="width: 180px" :prefix-icon="Search" />
           </div>
-          <el-table :data="portRules" stripe v-loading="loading">
+          <el-table :data="filteredPortRules" stripe v-loading="loading">
             <el-table-column prop="id" label="ID" width="60" />
             <el-table-column prop="port" label="端口" width="100" />
             <el-table-column prop="protocol" label="协议" width="100">
@@ -74,9 +92,12 @@
             <span><el-icon><Location /></el-icon> IP规则</span>
           </template>
           <div class="tab-header">
-            <el-button type="primary" icon="Plus" @click="showAddIP">添加IP规则</el-button>
+            <div class="tab-header-left">
+              <el-button type="primary" icon="Plus" @click="showAddIP">添加IP规则</el-button>
+            </div>
+            <el-input v-model="ipSearch" placeholder="搜索IP..." clearable size="small" style="width: 180px" :prefix-icon="Search" />
           </div>
-          <el-table :data="ipRules" stripe v-loading="loading">
+          <el-table :data="filteredIpRules" stripe v-loading="loading">
             <el-table-column prop="id" label="ID" width="60" />
             <el-table-column prop="ip" label="IP地址" min-width="150" />
             <el-table-column prop="strategy" label="策略" width="100">
@@ -206,6 +227,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { Search, ArrowDown } from '@element-plus/icons-vue';
 import {
   getFirewallList,
   addAcceptPort,
@@ -223,6 +245,25 @@ const loading = ref(false);
 const portRules = ref([]);
 const ipRules = ref([]);
 const attackLogs = ref([]);
+const portSearch = ref('');
+const ipSearch = ref('');
+
+// 过滤后的规则列表
+const filteredPortRules = computed(() => {
+  if (!portSearch.value) return portRules.value;
+  const q = portSearch.value.toLowerCase();
+  return portRules.value.filter(r =>
+    String(r.port).includes(q) || (r.protocol || '').toLowerCase().includes(q) || (r.ps || '').toLowerCase().includes(q)
+  );
+});
+
+const filteredIpRules = computed(() => {
+  if (!ipSearch.value) return ipRules.value;
+  const q = ipSearch.value.toLowerCase();
+  return ipRules.value.filter(r =>
+    (r.ip || '').toLowerCase().includes(q) || (r.ps || '').toLowerCase().includes(q)
+  );
+});
 const portDialogVisible = ref(false);
 const ipDialogVisible = ref(false);
 const portFormRef = ref(null);
@@ -341,6 +382,16 @@ const showAddPort = () => {
 const showAddIP = () => {
   ipForm.value = { ip: '', strategy: 'block', ps: '' };
   ipDialogVisible.value = true;
+};
+
+const quickAddPort = async ({ port, protocol }) => {
+  try {
+    await addAcceptPort({ port, protocol, ps: `快速放行 ${port}`, type: 'accept' });
+    ElMessage.success(`端口 ${port} 已放行`);
+    fetchFirewallData();
+  } catch (error) {
+    ElMessage.error('放行失败');
+  }
 };
 
 const submitPortRule = async () => {
@@ -500,7 +551,17 @@ onMounted(() => {
   }
 
   .tab-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 16px;
+    gap: 12px;
+
+    .tab-header-left {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
   }
 
   .ssh-form {
