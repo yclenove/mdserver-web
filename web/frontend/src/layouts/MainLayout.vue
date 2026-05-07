@@ -120,11 +120,9 @@ const menuRoutes = computed(() => {
 });
 
 function handleRefresh() {
-  router.replace({ path: '/redirect' + route.fullPath }).catch(() => {
-    // fallback: reload the page
-    window.location.reload();
-  });
+  window.location.reload();
 }
+
 
 function toggleFullscreen() {
   if (document.fullscreenElement) {

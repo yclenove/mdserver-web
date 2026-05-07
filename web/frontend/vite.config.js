@@ -29,11 +29,39 @@ export default defineConfig({
         target: 'http://localhost:7200',
         changeOrigin: true,
       },
+      '/firewall': {
+        target: 'http://localhost:7200',
+        changeOrigin: true,
+      },
+      '/crontab': {
+        target: 'http://localhost:7200',
+        changeOrigin: true,
+      },
+      '/plugins': {
+        target: 'http://localhost:7200',
+        changeOrigin: true,
+      },
+      '/setting': {
+        target: 'http://localhost:7200',
+        changeOrigin: true,
+      },
+      '/logs': {
+        target: 'http://localhost:7200',
+        changeOrigin: true,
+      },
       '/do_login': {
         target: 'http://localhost:7200',
         changeOrigin: true,
       },
       '/check_login': {
+        target: 'http://localhost:7200',
+        changeOrigin: true,
+      },
+      '/do_logout': {
+        target: 'http://localhost:7200',
+        changeOrigin: true,
+      },
+      '/code': {
         target: 'http://localhost:7200',
         changeOrigin: true,
       },
