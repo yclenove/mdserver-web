@@ -20,6 +20,7 @@ const adminPath = getAdminPath();
 const service = axios.create({
   baseURL: '/',
   timeout: 30000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/x-www-form-urlencoded',
   },
@@ -65,6 +66,7 @@ service.interceptors.response.use(
 
     return res;
   },
+
   (error) => {
     if (error.response) {
       const status = error.response.status;
@@ -76,7 +78,10 @@ service.interceptors.response.use(
           window.location.href = adminPath + '/vue/login';
           break;
         case 403:
-          ElMessage.error('没有权限访问');
+          // 面板未登录返回 403，重定向到登录页
+          localStorage.removeItem('mw_token');
+          localStorage.removeItem('mw_username');
+          window.location.href = adminPath + '/vue/login';
           break;
         case 404:
           ElMessage.error('请求的资源不存在');
