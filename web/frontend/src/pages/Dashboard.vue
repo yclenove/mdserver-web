@@ -219,7 +219,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { useAppStore } from '@/stores/app';
 import * as echarts from 'echarts';
 
@@ -230,6 +230,13 @@ const chartTimeRange = ref('1h');
 
 let trendChart = null;
 let refreshTimer = null;
+
+// 历史数据用于图表
+const MAX_HISTORY = 60;
+const cpuHistory = reactive([]);
+const memHistory = reactive([]);
+const diskHistory = reactive([]);
+const timeLabels = reactive([]);
 
 function getProgressColor(value) {
   if (value >= 90) return '#f56c6c';
@@ -247,18 +254,14 @@ function formatBytes(bytes) {
 
 function formatUptime(uptime) {
   if (!uptime) return '-';
-  // API 返回中文格式如 "已不间断运行: 0天11小时39分钟"
   if (typeof uptime === 'string') {
-    // 提取 "已不间断运行:" 后面的部分
     const match = uptime.match(/(\d+天\d+小时\d+分钟)/);
     if (match) return match[1];
-    // 如果已经是纯时间格式，直接返回
     if (uptime.includes('天') || uptime.includes('小时') || uptime.includes('分钟')) {
       return uptime.replace('已不间断运行: ', '');
     }
     return uptime;
   }
-  // 如果是秒数
   const days = Math.floor(uptime / 86400);
   const hours = Math.floor((uptime % 86400) / 3600);
   const mins = Math.floor((uptime % 3600) / 60);
@@ -267,6 +270,16 @@ function formatUptime(uptime) {
   if (hours > 0) parts.push(`${hours}小时`);
   parts.push(`${mins}分钟`);
   return parts.join('');
+}
+
+function getTimeLabel() {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+}
+
+function pushHistory(arr, value) {
+  arr.push(value);
+  if (arr.length > MAX_HISTORY) arr.shift();
 }
 
 function initTrendChart() {
@@ -296,9 +309,9 @@ function initTrendChart() {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: generateTimeLabels(),
+      data: [...timeLabels],
       axisLine: { lineStyle: { color: '#dcdfe6' } },
-      axisLabel: { color: '#909399' },
+      axisLabel: { color: '#909399', fontSize: 10 },
     },
     yAxis: {
       type: 'value',
@@ -321,7 +334,7 @@ function initTrendChart() {
             { offset: 1, color: 'rgba(64, 158, 255, 0.05)' },
           ]),
         },
-        data: generateMockData(),
+        data: [...cpuHistory],
       },
       {
         name: '内存',
@@ -335,7 +348,7 @@ function initTrendChart() {
             { offset: 1, color: 'rgba(103, 194, 58, 0.05)' },
           ]),
         },
-        data: generateMockData(),
+        data: [...memHistory],
       },
       {
         name: '磁盘',
@@ -349,7 +362,7 @@ function initTrendChart() {
             { offset: 1, color: 'rgba(230, 162, 60, 0.05)' },
           ]),
         },
-        data: generateMockData(),
+        data: [...diskHistory],
       },
     ],
   };
@@ -357,26 +370,31 @@ function initTrendChart() {
   trendChart.setOption(option);
 }
 
-function generateTimeLabels() {
-  const labels = [];
-  const now = new Date();
-  for (let i = 23; i >= 0; i--) {
-    const time = new Date(now - i * 5 * 60 * 1000);
-    labels.push(
-      `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`
-    );
-  }
-  return labels;
-}
-
-function generateMockData() {
-  return Array.from({ length: 24 }, () => Math.floor(Math.random() * 60 + 20));
+function updateTrendChart() {
+  if (!trendChart) return;
+  trendChart.setOption({
+    xAxis: { data: [...timeLabels] },
+    series: [
+      { data: [...cpuHistory] },
+      { data: [...memHistory] },
+      { data: [...diskHistory] },
+    ],
+  });
 }
 
 async function refreshData() {
   try {
     await appStore.fetchSystemInfo();
     systemInfo.value = appStore.systemInfo;
+
+    // 更新图表历史
+    const label = getTimeLabel();
+    pushHistory(timeLabels, label);
+    pushHistory(cpuHistory, systemInfo.value.cpu.usage || 0);
+    pushHistory(memHistory, systemInfo.value.memory.usage || 0);
+    pushHistory(diskHistory, systemInfo.value.disk.usage || 0);
+
+    updateTrendChart();
   } catch {
     // 静默处理
   }

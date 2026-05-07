@@ -222,6 +222,11 @@ def requestAfter(response):
     response.headers["soft"] = config.APP_NAME
     response.headers["mw-version"] = config.APP_VERSION
     response.headers["X-Response-Time"] = round(time.time() - request.start_time, 4)
+
+    # 为 Vue 静态资源添加长期缓存头
+    if request.path.startswith('/vue/assets/') or request.path.startswith('/assets/'):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+
     return response
 
 

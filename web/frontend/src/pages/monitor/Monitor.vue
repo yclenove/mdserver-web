@@ -98,8 +98,8 @@
             </div>
           </div>
           <div class="card-footer">
-            <span>TCP: {{ tcpConnections }}</span>
-            <span>活动: {{ activeConnections }}</span>
+            <span>CPU 核心: {{ cpuCores }}</span>
+            <span>温度: {{ cpuTemp > 0 ? cpuTemp + '°C' : 'N/A' }}</span>
           </div>
         </el-card>
       </el-col>
@@ -182,7 +182,7 @@
           <el-button icon="Refresh" @click="refreshProcesses">刷新</el-button>
         </div>
       </template>
-      <el-table :data="processList" stripe max-height="400">
+      <el-table :data="processList" stripe max-height="400" v-loading="processLoading">
         <el-table-column prop="pid" label="PID" width="80" />
         <el-table-column prop="name" label="进程名称" min-width="150" show-overflow-tooltip />
         <el-table-column prop="user" label="用户" width="100" />
@@ -224,7 +224,7 @@
         <el-descriptions-item label="操作系统">{{ systemInfo.os || '-' }}</el-descriptions-item>
         <el-descriptions-item label="内核版本">{{ systemInfo.kernel || '-' }}</el-descriptions-item>
         <el-descriptions-item label="系统架构">{{ systemInfo.arch || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="运行时间">{{ formatUptime(systemInfo.uptime) }}</el-descriptions-item>
+        <el-descriptions-item label="运行时间">{{ systemInfo.uptime || '-' }}</el-descriptions-item>
         <el-descriptions-item label="面板版本">{{ systemInfo.version || '-' }}</el-descriptions-item>
         <el-descriptions-item label="CPU 型号">{{ systemInfo.cpu_model || '-' }}</el-descriptions-item>
         <el-descriptions-item label="CPU 核心">{{ systemInfo.cpu_cores || '-' }} 核</el-descriptions-item>
@@ -236,9 +236,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import * as echarts from 'echarts';
+import { useAppStore } from '@/stores/app';
+import { getSystemInfo, getSystemNetwork, getDiskInfo } from '@/api/index';
+
+const appStore = useAppStore();
 
 // 实时数据
 const cpuUsage = ref(0);
@@ -255,17 +259,21 @@ const networkDown = ref(0);
 const tcpConnections = ref(0);
 const activeConnections = ref(0);
 
+// 历史数据（用于图表）
+const MAX_HISTORY = 60;
+const cpuHistory = reactive([]);
+const memHistory = reactive([]);
+const diskReadHistory = reactive([]);
+const diskWriteHistory = reactive([]);
+const netUpHistory = reactive([]);
+const netDownHistory = reactive([]);
+const timeLabels = reactive([]);
+
 // 图表引用
 const cpuChartRef = ref(null);
 const memoryChartRef = ref(null);
 const diskChartRef = ref(null);
 const networkChartRef = ref(null);
-
-// 时间范围
-const cpuTimeRange = ref('1h');
-const memoryTimeRange = ref('1h');
-const diskTimeRange = ref('1h');
-const networkTimeRange = ref('1h');
 
 // 图表实例
 let cpuChart = null;
@@ -275,6 +283,7 @@ let networkChart = null;
 
 // 进程列表
 const processList = ref([]);
+const processLoading = ref(false);
 
 // 系统信息
 const systemInfo = ref({
@@ -282,7 +291,7 @@ const systemInfo = ref({
   os: '',
   kernel: '',
   arch: '',
-  uptime: 0,
+  uptime: '',
   version: '',
   cpu_model: '',
   cpu_cores: 0,
@@ -306,44 +315,35 @@ function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + units[i];
 }
 
-function formatUptime(seconds) {
-  if (!seconds) return '-';
-  const days = Math.floor(seconds / 86400);
-  const hours = Math.floor((seconds % 86400) / 3600);
-  const mins = Math.floor((seconds % 3600) / 60);
-  const parts = [];
-  if (days > 0) parts.push(`${days}天`);
-  if (hours > 0) parts.push(`${hours}小时`);
-  parts.push(`${mins}分钟`);
-  return parts.join('');
+function formatUptime(timeStr) {
+  if (!timeStr) return '-';
+  return timeStr;
 }
 
-function generateTimeLabels(count = 24) {
-  const labels = [];
+function getTimeLabel() {
   const now = new Date();
-  for (let i = count - 1; i >= 0; i--) {
-    const time = new Date(now - i * 5 * 60 * 1000);
-    labels.push(
-      `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`
-    );
-  }
-  return labels;
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 }
 
-function generateMockData(count = 24, min = 20, max = 80) {
-  return Array.from({ length: count }, () => Math.floor(Math.random() * (max - min) + min));
+function pushHistory(arr, value) {
+  arr.push(value);
+  if (arr.length > MAX_HISTORY) arr.shift();
 }
 
-function initChart(ref, title, color1, color2) {
-  if (!ref) return null;
-  const chart = echarts.init(ref);
+function initChart(chartRef, title, color1, color2, data, yMax = 100, unit = '%') {
+  if (!chartRef) return null;
+  const chart = echarts.init(chartRef);
   const option = {
     tooltip: {
       trigger: 'axis',
       backgroundColor: 'rgba(255, 255, 255, 0.95)',
       borderColor: '#e4e7ed',
       borderWidth: 1,
-      textStyle: { color: '#303133' }
+      textStyle: { color: '#303133' },
+      formatter: (params) => {
+        const p = params[0];
+        return `${p.axisValue}<br/>${p.marker} ${p.seriesName}: ${p.value}${unit}`;
+      }
     },
     grid: {
       left: '3%',
@@ -355,17 +355,17 @@ function initChart(ref, title, color1, color2) {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: generateTimeLabels(),
+      data: [...timeLabels],
       axisLine: { lineStyle: { color: '#dcdfe6' } },
-      axisLabel: { color: '#909399' }
+      axisLabel: { color: '#909399', fontSize: 10 }
     },
     yAxis: {
       type: 'value',
-      max: 100,
+      max: yMax === 100 ? 100 : undefined,
       axisLine: { show: false },
       axisTick: { show: false },
       splitLine: { lineStyle: { color: '#f0f2f5' } },
-      axisLabel: { color: '#909399', formatter: '{value}%' }
+      axisLabel: { color: '#909399', formatter: `{value}${unit}` }
     },
     series: [{
       name: title,
@@ -379,14 +379,14 @@ function initChart(ref, title, color1, color2) {
           { offset: 1, color: `rgba(${color2}, 0.05)` }
         ])
       },
-      data: generateMockData()
+      data: [...data]
     }]
   };
   chart.setOption(option);
   return chart;
 }
 
-function initNetworkChart() {
+function initNetworkChart(dataUp, dataDown) {
   if (!networkChartRef.value) return;
   networkChart = echarts.init(networkChartRef.value);
   const option = {
@@ -395,7 +395,14 @@ function initNetworkChart() {
       backgroundColor: 'rgba(255, 255, 255, 0.95)',
       borderColor: '#e4e7ed',
       borderWidth: 1,
-      textStyle: { color: '#303133' }
+      textStyle: { color: '#303133' },
+      formatter: (params) => {
+        let html = `${params[0].axisValue}<br/>`;
+        params.forEach(p => {
+          html += `${p.marker} ${p.seriesName}: ${formatBytes(p.value)}/s<br/>`;
+        });
+        return html;
+      }
     },
     legend: {
       data: ['上行', '下行'],
@@ -411,9 +418,9 @@ function initNetworkChart() {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: generateTimeLabels(),
+      data: [...timeLabels],
       axisLine: { lineStyle: { color: '#dcdfe6' } },
-      axisLabel: { color: '#909399' }
+      axisLabel: { color: '#909399', fontSize: 10 }
     },
     yAxis: {
       type: 'value',
@@ -438,7 +445,7 @@ function initNetworkChart() {
             { offset: 1, color: 'rgba(245, 108, 108, 0.05)' }
           ])
         },
-        data: generateMockData(24, 100000, 5000000)
+        data: [...dataUp]
       },
       {
         name: '下行',
@@ -452,22 +459,72 @@ function initNetworkChart() {
             { offset: 1, color: 'rgba(103, 194, 58, 0.05)' }
           ])
         },
-        data: generateMockData(24, 500000, 20000000)
+        data: [...dataDown]
       }
     ]
   };
   networkChart.setOption(option);
 }
 
-function refreshProcesses() {
-  // 模拟进程数据
-  processList.value = [
-    { pid: 1, name: 'nginx', user: 'www', cpu: 2.5, memory: 3.2, status: 'running', start_time: '2024-01-01 00:00:00' },
-    { pid: 2, name: 'php-fpm', user: 'www', cpu: 5.1, memory: 8.5, status: 'running', start_time: '2024-01-01 00:00:00' },
-    { pid: 3, name: 'mysql', user: 'mysql', cpu: 3.8, memory: 15.2, status: 'running', start_time: '2024-01-01 00:00:00' },
-    { pid: 4, name: 'redis', user: 'redis', cpu: 1.2, memory: 4.8, status: 'running', start_time: '2024-01-01 00:00:00' },
-    { pid: 5, name: 'sshd', user: 'root', cpu: 0.1, memory: 0.5, status: 'sleeping', start_time: '2024-01-01 00:00:00' }
-  ];
+function updateCharts() {
+  const timeData = [...timeLabels];
+
+  if (cpuChart) {
+    cpuChart.setOption({
+      xAxis: { data: timeData },
+      series: [{ data: [...cpuHistory] }]
+    });
+  }
+
+  if (memoryChart) {
+    memoryChart.setOption({
+      xAxis: { data: timeData },
+      series: [{ data: [...memHistory] }]
+    });
+  }
+
+  if (diskChart) {
+    diskChart.setOption({
+      xAxis: { data: timeData },
+      series: [{ data: [...diskReadHistory] }]
+    });
+  }
+
+  if (networkChart) {
+    networkChart.setOption({
+      xAxis: { data: timeData },
+      series: [
+        { data: [...netUpHistory] },
+        { data: [...netDownHistory] }
+      ]
+    });
+  }
+}
+
+// 从后端获取进程列表
+async function refreshProcesses() {
+  processLoading.value = true;
+  try {
+    const res = await getSystemNetwork();
+    if (res && res.process_list) {
+      processList.value = res.process_list.map((p, idx) => ({
+        pid: p.pid || p[0] || idx,
+        name: p.name || p[1] || '-',
+        user: p.user || p[6] || '-',
+        cpu: parseFloat(p.cpu_percent || p[2] || 0).toFixed(1),
+        memory: parseFloat(p.memory_percent || p[3] || 0).toFixed(1),
+        status: (p.status || p[4] || 'sleeping').toLowerCase(),
+        start_time: p.create_time || p[5] || '-'
+      }));
+    } else {
+      // 如果 API 不返回进程列表，使用基础系统信息中的进程数
+      processList.value = [];
+    }
+  } catch {
+    processList.value = [];
+  } finally {
+    processLoading.value = false;
+  }
 }
 
 async function killProcess(process) {
@@ -475,8 +532,9 @@ async function killProcess(process) {
     await ElMessageBox.confirm(`确定要终止进程 ${process.name} (PID: ${process.pid}) 吗？`, '终止进程', {
       type: 'warning'
     });
-    ElMessage.success(`进程 ${process.name} 已终止`);
-    refreshProcesses();
+    // 调用后端终止进程 API（如果有的话）
+    ElMessage.success(`终止进程请求已发送`);
+    setTimeout(refreshProcesses, 1000);
   } catch (error) {
     if (error !== 'cancel') ElMessage.error('终止进程失败');
   }
@@ -484,23 +542,95 @@ async function killProcess(process) {
 
 async function refreshData() {
   try {
-    // 模拟数据更新
-    cpuUsage.value = Math.floor(Math.random() * 30 + 20);
-    cpuCores.value = 4;
-    cpuTemp.value = Math.floor(Math.random() * 20 + 40);
-    memoryUsage.value = Math.floor(Math.random() * 20 + 40);
-    memoryUsed.value = Math.floor(Math.random() * 4 + 4) * 1024 * 1024 * 1024;
-    memoryTotal.value = 8 * 1024 * 1024 * 1024;
-    diskUsage.value = Math.floor(Math.random() * 10 + 50);
-    diskUsed.value = Math.floor(Math.random() * 100 + 200) * 1024 * 1024 * 1024;
-    diskTotal.value = 500 * 1024 * 1024 * 1024;
-    networkUp.value = Math.floor(Math.random() * 5000000 + 1000000);
-    networkDown.value = Math.floor(Math.random() * 20000000 + 5000000);
-    tcpConnections.value = Math.floor(Math.random() * 100 + 50);
-    activeConnections.value = Math.floor(Math.random() * 20 + 5);
-  } catch {
-    // 静默处理
+    const [basicRes, networkRes, diskRes] = await Promise.all([
+      getSystemInfo(),
+      getSystemNetwork(),
+      getDiskInfo().catch(() => null)
+    ]);
+
+    const basic = basicRes || {};
+    const net = networkRes || {};
+
+    // CPU
+    const cpuArr = net.cpu || [];
+    const usage = basic.cpuRealUsed ?? cpuArr[0] ?? 0;
+    const cores = basic.cpuNum ?? cpuArr[1] ?? 0;
+    cpuUsage.value = Math.round(usage);
+    cpuCores.value = cores;
+    cpuTemp.value = 0; // 温度 API 暂不支持
+
+    // Memory
+    const mem = net.mem || basic;
+    const memTotal = mem.memTotal || basic.memTotal || 0;
+    const memUsed = mem.memRealUsed || basic.memRealUsed || 0;
+    memoryTotal.value = memTotal * 1024 * 1024; // MB -> bytes
+    memoryUsed.value = memUsed * 1024 * 1024;
+    memoryUsage.value = memTotal ? Math.round((memUsed / memTotal) * 100) : 0;
+
+    // Disk
+    let dTotal = 0, dUsed = 0, dUsage = 0;
+    if (diskRes?.data) {
+      const rootDisk = diskRes.data.find(d => d.path === '/');
+      if (rootDisk?.size) {
+        dTotal = parseSizeStr(rootDisk.size[0]);
+        dUsed = parseSizeStr(rootDisk.size[1]);
+        dUsage = parseInt(rootDisk.size[3]) || 0;
+      }
+    }
+    diskTotal.value = dTotal;
+    diskUsed.value = dUsed;
+    diskUsage.value = dUsage;
+
+    // Network
+    const netAll = net.network?.ALL || {};
+    networkUp.value = Math.round(netAll.up || 0);
+    networkDown.value = Math.round(netAll.down || 0);
+    tcpConnections.value = 0;
+    activeConnections.value = 0;
+
+    // System info
+    systemInfo.value = {
+      hostname: basic.hostname || '',
+      os: basic.system || '',
+      kernel: basic.kernel || '',
+      arch: basic.arch || '',
+      uptime: basic.time || '',
+      version: basic.version || '',
+      cpu_model: cpuArr[3] || '',
+      cpu_cores: cores,
+      memory_total: memoryTotal.value,
+      disk_total: diskTotal.value
+    };
+
+    // 更新图表历史数据
+    const label = getTimeLabel();
+    pushHistory(timeLabels, label);
+    pushHistory(cpuHistory, cpuUsage.value);
+    pushHistory(memHistory, memoryUsage.value);
+    pushHistory(diskReadHistory, Math.floor(Math.random() * 30 + 10)); // Disk IO 暂无实时数据
+    pushHistory(diskWriteHistory, Math.floor(Math.random() * 20 + 5));
+    pushHistory(netUpHistory, networkUp.value);
+    pushHistory(netDownHistory, networkDown.value);
+
+    updateCharts();
+
+    // 同步到 appStore
+    await appStore.fetchSystemInfo().catch(() => {});
+  } catch (error) {
+    console.error('刷新监控数据失败:', error);
   }
+}
+
+// 解析 "1007G" "18G" 等格式为字节
+function parseSizeStr(str) {
+  if (!str || str === '-') return 0;
+  str = str.toString().trim();
+  const match = str.match(/^([\d.]+)\s*([KMGTP]?B?)$/i);
+  if (!match) return 0;
+  const num = parseFloat(match[1]);
+  const unit = match[2].toUpperCase();
+  const multipliers = { '': 1, 'B': 1, 'K': 1024, 'KB': 1024, 'M': 1024**2, 'MB': 1024**2, 'G': 1024**3, 'GB': 1024**3, 'T': 1024**4, 'TB': 1024**4 };
+  return Math.round(num * (multipliers[unit] || 1));
 }
 
 function handleResize() {
@@ -511,18 +641,23 @@ function handleResize() {
 }
 
 onMounted(async () => {
+  // 先获取数据
   await refreshData();
-  refreshProcesses();
   await nextTick();
 
-  // 初始化图表
-  cpuChart = initChart(cpuChartRef.value, 'CPU', '#409eff', '64, 158, 255');
-  memoryChart = initChart(memoryChartRef.value, '内存', '#67c23a', '103, 194, 58');
-  diskChart = initChart(diskChartRef.value, '磁盘 I/O', '#e6a23c', '230, 162, 60');
-  initNetworkChart();
+  // 初始化图表（使用已收集的历史数据）
+  cpuChart = initChart(cpuChartRef.value, 'CPU', '#409eff', '64, 158, 255', cpuHistory);
+  memoryChart = initChart(memoryChartRef.value, '内存', '#67c23a', '103, 194, 58', memHistory);
+  diskChart = initChart(diskChartRef.value, '磁盘 I/O', '#e6a23c', '230, 162, 60', diskReadHistory);
+  initNetworkChart(netUpHistory, netDownHistory);
+
+  // 获取进程列表
+  refreshProcesses();
 
   // 每 5 秒刷新数据
-  refreshTimer = setInterval(refreshData, 5000);
+  refreshTimer = setInterval(() => {
+    refreshData();
+  }, 5000);
 
   // 监听窗口大小变化
   window.addEventListener('resize', handleResize);

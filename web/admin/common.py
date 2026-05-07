@@ -28,9 +28,8 @@ def isLogined():
         now_time = int(time.time())
 
         if "overdue" in session and now_time > session["overdue"]:
-            # 自动续期
+            # 自动续期 - 重新设置过期时间并继续允许登录
             session["overdue"] = int(time.time()) + 7 * 24 * 60 * 60
-            return False
 
         if "tmp_login_expire" in session and now_time > int(
             session["tmp_login_expire"]

@@ -97,7 +97,8 @@ async function loadFile() {
 
   try {
     const res = await getFileContent(path);
-    fileContent.value = res.data || '';
+    // API 返回格式: { status: true, msg: "OK", data: { status, encoding, data: "file content" } }
+    fileContent.value = res.data?.data || res.data || '';
 
     // 自动检测语言
     if (editorRef.value) {
