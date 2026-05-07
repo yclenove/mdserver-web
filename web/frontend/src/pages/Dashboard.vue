@@ -298,7 +298,7 @@ import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useAppStore } from '@/stores/app';
 import * as echarts from 'echarts';
-import { getIndexPluginList } from '@/api/index';
+import { getIndexPluginList, restartPanelApi, clearLogs as apiClearLogs } from '@/api/index';
 
 const router = useRouter();
 const appStore = useAppStore();
@@ -341,8 +341,8 @@ async function quickAction(action) {
     case 'restart_panel':
       try {
         await ElMessageBox.confirm('确定要重启面板服务吗？', '重启确认', { type: 'warning' });
-        ElMessage.info('面板重启中...');
-        // 后端重启接口
+        await restartPanelApi();
+        ElMessage.success('面板正在重启...');
         setTimeout(() => window.location.reload(), 3000);
       } catch {
         // cancelled
@@ -351,8 +351,7 @@ async function quickAction(action) {
     case 'clear_logs':
       try {
         await ElMessageBox.confirm('确定要清空面板日志吗？', '清空确认', { type: 'warning' });
-        const { clearLogs } = await import('@/api/index');
-        await clearLogs();
+        await apiClearLogs();
         ElMessage.success('日志已清空');
       } catch {
         // cancelled or error

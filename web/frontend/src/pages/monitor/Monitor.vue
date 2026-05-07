@@ -250,7 +250,17 @@
     <!-- 系统信息 -->
     <el-card class="system-info-card">
       <template #header>
-        <span>系统信息</span>
+        <div class="chart-header">
+          <span>系统信息</span>
+          <div>
+            <el-button type="warning" size="small" @click="handleRestartPanel">
+              <el-icon><RefreshRight /></el-icon> 重启面板
+            </el-button>
+            <el-button type="danger" size="small" @click="handleRestartServer">
+              <el-icon><SwitchButton /></el-icon> 重启服务器
+            </el-button>
+          </div>
+        </div>
       </template>
       <el-descriptions :column="2" border>
         <el-descriptions-item label="主机名">{{ systemInfo.hostname || '-' }}</el-descriptions-item>
@@ -273,7 +283,7 @@ import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import * as echarts from 'echarts';
 import { useAppStore } from '@/stores/app';
-import { getSystemInfo, getSystemNetwork, getDiskInfo, getCpuIo, getDiskIo, getNetworkIo, getMonitorControl, setMonitorControl } from '@/api/index';
+import { getSystemInfo, getSystemNetwork, getDiskInfo, getCpuIo, getDiskIo, getNetworkIo, getMonitorControl, setMonitorControl, restartPanelApi, restartServerApi } from '@/api/index';
 
 const appStore = useAppStore();
 
@@ -505,6 +515,87 @@ function initNetworkChart(dataUp, dataDown) {
   networkChart.setOption(option);
 }
 
+function initDiskIoChart() {
+  if (!diskChartRef.value) return null;
+  diskChart = echarts.init(diskChartRef.value);
+  const option = {
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      borderColor: '#e4e7ed',
+      borderWidth: 1,
+      textStyle: { color: '#303133' },
+      formatter: (params) => {
+        let html = `${params[0].axisValue}<br/>`;
+        params.forEach(p => {
+          html += `${p.marker} ${p.seriesName}: ${formatBytes(p.value)}/s<br/>`;
+        });
+        return html;
+      }
+    },
+    legend: {
+      data: ['读取', '写入'],
+      bottom: 0
+    },
+    grid: {
+      left: '3%',
+      right: '3%',
+      top: '10%',
+      bottom: '15%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: [...timeLabels],
+      axisLine: { lineStyle: { color: '#dcdfe6' } },
+      axisLabel: { color: '#909399', fontSize: 10 }
+    },
+    yAxis: {
+      type: 'value',
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: '#f0f2f5' } },
+      axisLabel: {
+        color: '#909399',
+        formatter: (value) => formatBytes(value) + '/s'
+      }
+    },
+    series: [
+      {
+        name: '读取',
+        type: 'line',
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { width: 2, color: '#e6a23c' },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(230, 162, 60, 0.3)' },
+            { offset: 1, color: 'rgba(230, 162, 60, 0.05)' }
+          ])
+        },
+        data: [...diskReadHistory]
+      },
+      {
+        name: '写入',
+        type: 'line',
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { width: 2, color: '#409eff' },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(64, 158, 255, 0.3)' },
+            { offset: 1, color: 'rgba(64, 158, 255, 0.05)' }
+          ])
+        },
+        data: [...diskWriteHistory]
+      }
+    ]
+  };
+  diskChart.setOption(option);
+  return diskChart;
+}
+
 function updateCharts() {
   const timeData = [...timeLabels];
 
@@ -525,7 +616,10 @@ function updateCharts() {
   if (diskChart) {
     diskChart.setOption({
       xAxis: { data: timeData },
-      series: [{ data: [...diskReadHistory] }]
+      series: [
+        { data: [...diskReadHistory] },
+        { data: [...diskWriteHistory] }
+      ]
     });
   }
 
@@ -764,6 +858,31 @@ async function fetchHistoricalData() {
   }
 }
 
+async function handleRestartPanel() {
+  try {
+    await ElMessageBox.confirm('确定要重启面板服务吗？', '重启面板', { type: 'warning' });
+    await restartPanelApi();
+    ElMessage.success('面板正在重启...');
+    setTimeout(() => window.location.reload(), 3000);
+  } catch {
+    // cancelled
+  }
+}
+
+async function handleRestartServer() {
+  try {
+    await ElMessageBox.confirm('确定要重启服务器吗？这将中断所有服务！', '重启服务器', {
+      type: 'warning',
+      confirmButtonText: '确定重启',
+      cancelButtonText: '取消'
+    });
+    await restartServerApi();
+    ElMessage.success('服务器正在重启，请稍后刷新页面...');
+  } catch {
+    // cancelled
+  }
+}
+
 function handleResize() {
   if (cpuChart) cpuChart.resize();
   if (memoryChart) memoryChart.resize();
@@ -779,7 +898,7 @@ onMounted(async () => {
   // 初始化图表（使用已收集的历史数据）
   cpuChart = initChart(cpuChartRef.value, 'CPU', '#409eff', '64, 158, 255', cpuHistory);
   memoryChart = initChart(memoryChartRef.value, '内存', '#67c23a', '103, 194, 58', memHistory);
-  diskChart = initChart(diskChartRef.value, '磁盘 I/O', '#e6a23c', '230, 162, 60', diskReadHistory);
+  diskChart = initDiskIoChart();
   initNetworkChart(netUpHistory, netDownHistory);
 
   // 获取进程列表

@@ -1,6 +1,6 @@
 {
-  "_files-204ce6b0.js": {
-    "file": "assets/files-204ce6b0.js",
+  "_files-40fcc360.js": {
+    "file": "assets/files-40fcc360.js",
     "imports": [
       "index.html"
     ]
@@ -140,15 +140,15 @@
       "src/pages/logs/Logs.vue",
       "src/pages/crontab/Crontab.vue",
       "src/pages/soft/Soft.vue",
-      "src/pages/setting/Setting.vue"
+      "src/pages/setting/Setting.vue",
+      "src/pages/NotFound.vue"
     ],
-    "file": "assets/index-355092e1.js",
+    "file": "assets/index-aa82d6a6.js",
     "imports": [
       "_vendor-vue-8413b67a.js",
       "_vendor-element-ba4aff8c.js",
       "_vendor-monaco-85ffb45c.js"
     ],
-    "isDynamicEntry": true,
     "isEntry": true,
     "src": "index.html"
   },
@@ -623,23 +623,20 @@
     "src": "node_modules/monaco-editor/esm/vs/language/typescript/tsMode.js"
   },
   "src/pages/Dashboard.css": {
-    "file": "assets/Dashboard-0b84dfa5.css",
+    "file": "assets/Dashboard-2ec23f6f.css",
     "src": "src/pages/Dashboard.css"
   },
   "src/pages/Dashboard.vue": {
     "css": [
-      "assets/Dashboard-0b84dfa5.css"
+      "assets/Dashboard-2ec23f6f.css"
     ],
-    "dynamicImports": [
-      "index.html"
-    ],
-    "file": "assets/Dashboard-9f32e675.js",
+    "file": "assets/Dashboard-e36da86e.js",
     "imports": [
-      "_vendor-monaco-85ffb45c.js",
       "_vendor-vue-8413b67a.js",
       "_vendor-element-ba4aff8c.js",
       "index.html",
-      "_vendor-echarts-6433f102.js"
+      "_vendor-echarts-6433f102.js",
+      "_vendor-monaco-85ffb45c.js"
     ],
     "isDynamicEntry": true,
     "src": "src/pages/Dashboard.vue"
@@ -652,7 +649,7 @@
     "css": [
       "assets/Login-8ff6333b.css"
     ],
-    "file": "assets/Login-9e53bdc0.js",
+    "file": "assets/Login-de83ceaf.js",
     "imports": [
       "_vendor-vue-8413b67a.js",
       "_vendor-element-ba4aff8c.js",
@@ -662,6 +659,24 @@
     "isDynamicEntry": true,
     "src": "src/pages/Login.vue"
   },
+  "src/pages/NotFound.css": {
+    "file": "assets/NotFound-a5744f02.css",
+    "src": "src/pages/NotFound.css"
+  },
+  "src/pages/NotFound.vue": {
+    "css": [
+      "assets/NotFound-a5744f02.css"
+    ],
+    "file": "assets/NotFound-4cc6924b.js",
+    "imports": [
+      "_vendor-vue-8413b67a.js",
+      "index.html",
+      "_vendor-element-ba4aff8c.js",
+      "_vendor-monaco-85ffb45c.js"
+    ],
+    "isDynamicEntry": true,
+    "src": "src/pages/NotFound.vue"
+  },
   "src/pages/crontab/Crontab.css": {
     "file": "assets/Crontab-a5e23fdb.css",
     "src": "src/pages/crontab/Crontab.css"
@@ -670,7 +685,7 @@
     "css": [
       "assets/Crontab-a5e23fdb.css"
     ],
-    "file": "assets/Crontab-0648d8d6.js",
+    "file": "assets/Crontab-fcacfe7f.js",
     "imports": [
       "_vendor-element-ba4aff8c.js",
       "index.html",
@@ -691,13 +706,13 @@
     "dynamicImports": [
       "_vendor-monaco-85ffb45c.js"
     ],
-    "file": "assets/FileEdit-f1b172e4.js",
+    "file": "assets/FileEdit-19ce7587.js",
     "imports": [
       "_vendor-vue-8413b67a.js",
       "_vendor-element-ba4aff8c.js",
       "_vendor-monaco-85ffb45c.js",
       "index.html",
-      "_files-204ce6b0.js"
+      "_files-40fcc360.js"
     ],
     "isDynamicEntry": true,
     "src": "src/pages/files/FileEdit.vue"
@@ -710,11 +725,11 @@
     "css": [
       "assets/FileList-8464b480.css"
     ],
-    "file": "assets/FileList-875ab26d.js",
+    "file": "assets/FileList-7678383a.js",
     "imports": [
       "_vendor-vue-8413b67a.js",
       "_vendor-element-ba4aff8c.js",
-      "_files-204ce6b0.js",
+      "_files-40fcc360.js",
       "index.html",
       "_vendor-monaco-85ffb45c.js"
     ],
@@ -729,7 +744,7 @@
     "css": [
       "assets/Firewall-df543e1f.css"
     ],
-    "file": "assets/Firewall-ea6df1dc.js",
+    "file": "assets/Firewall-5db33b05.js",
     "imports": [
       "_vendor-element-ba4aff8c.js",
       "index.html",
@@ -740,14 +755,14 @@
     "src": "src/pages/firewall/Firewall.vue"
   },
   "src/pages/logs/Logs.css": {
-    "file": "assets/Logs-bcb198b3.css",
+    "file": "assets/Logs-5617a9ab.css",
     "src": "src/pages/logs/Logs.css"
   },
   "src/pages/logs/Logs.vue": {
     "css": [
-      "assets/Logs-bcb198b3.css"
+      "assets/Logs-5617a9ab.css"
     ],
-    "file": "assets/Logs-b59bf2aa.js",
+    "file": "assets/Logs-6c8bf791.js",
     "imports": [
       "_vendor-element-ba4aff8c.js",
       "index.html",
@@ -758,14 +773,14 @@
     "src": "src/pages/logs/Logs.vue"
   },
   "src/pages/monitor/Monitor.css": {
-    "file": "assets/Monitor-ab5bb357.css",
+    "file": "assets/Monitor-4db395aa.css",
     "src": "src/pages/monitor/Monitor.css"
   },
   "src/pages/monitor/Monitor.vue": {
     "css": [
-      "assets/Monitor-ab5bb357.css"
+      "assets/Monitor-4db395aa.css"
     ],
-    "file": "assets/Monitor-1a1d4d93.js",
+    "file": "assets/Monitor-ff38077d.js",
     "imports": [
       "_vendor-element-ba4aff8c.js",
       "_vendor-echarts-6433f102.js",
@@ -784,7 +799,7 @@
     "css": [
       "assets/Setting-7e236598.css"
     ],
-    "file": "assets/Setting-ee83c8a1.js",
+    "file": "assets/Setting-c67653d7.js",
     "imports": [
       "_vendor-element-ba4aff8c.js",
       "index.html",
@@ -795,14 +810,14 @@
     "src": "src/pages/setting/Setting.vue"
   },
   "src/pages/site/SiteList.css": {
-    "file": "assets/SiteList-b7c57993.css",
+    "file": "assets/SiteList-63ceeef2.css",
     "src": "src/pages/site/SiteList.css"
   },
   "src/pages/site/SiteList.vue": {
     "css": [
-      "assets/SiteList-b7c57993.css"
+      "assets/SiteList-63ceeef2.css"
     ],
-    "file": "assets/SiteList-376fc44f.js",
+    "file": "assets/SiteList-a2373f61.js",
     "imports": [
       "_vendor-vue-8413b67a.js",
       "_vendor-element-ba4aff8c.js",
@@ -820,7 +835,7 @@
     "css": [
       "assets/Soft-f00b226e.css"
     ],
-    "file": "assets/Soft-88d5bd94.js",
+    "file": "assets/Soft-e824bf5a.js",
     "imports": [
       "_vendor-element-ba4aff8c.js",
       "index.html",

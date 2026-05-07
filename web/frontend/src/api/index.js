@@ -894,3 +894,52 @@ export function delRedirect(siteName, id) {
   data.append('id', id);
   return request({ url: '/site/del_redirect', method: 'post', data });
 }
+
+// ==================== 站点分类管理 ====================
+
+// 获取站点分类列表
+export function getSiteTypes() {
+  return request({ url: '/site/get_site_types', method: 'post' });
+}
+
+// 添加站点分类
+export function addSiteType(name) {
+  const data = new URLSearchParams();
+  data.append('name', name);
+  return request({ url: '/site/add_site_type', method: 'post', data });
+}
+
+// 删除站点分类
+export function removeSiteType(id) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  return request({ url: '/site/remove_site_type', method: 'post', data });
+}
+
+// 修改站点分类名称
+export function modifySiteTypeName(id, name) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  data.append('name', name);
+  return request({ url: '/site/modify_site_type_name', method: 'post', data });
+}
+
+// 设置站点分类
+export function setSiteType(siteIds, typeId) {
+  const data = new URLSearchParams();
+  data.append('site_ids', JSON.stringify(siteIds));
+  data.append('id', typeId);
+  return request({ url: '/site/set_site_type', method: 'post', data });
+}
+
+// ==================== 系统控制 ====================
+
+// 重启面板
+export function restartPanelApi() {
+  return request({ url: '/system/restart', method: 'post' });
+}
+
+// 重启服务器
+export function restartServerApi() {
+  return request({ url: '/system/restart_server', method: 'post' });
+}

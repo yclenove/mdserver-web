@@ -98,7 +98,9 @@ const routes = [
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/dashboard',
+    name: 'NotFound',
+    component: () => import('@/pages/NotFound.vue'),
+    meta: { title: '页面未找到', requiresAuth: false },
   },
 ];
 

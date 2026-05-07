@@ -136,7 +136,7 @@
         <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link @click="viewLogDetail(row)">详情</el-button>
-            <el-button type="danger" link @click="deleteLog(row)">删除</el-button>
+            <el-button type="info" link @click="copySingleLog(row)">复制</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -213,8 +213,31 @@ const fetchLogs = async () => {
       search: searchQuery.value
     });
     if (res && res.data) {
-      logList.value = res.data || [];
-      total.value = res.data.length || 0;
+      const data = Array.isArray(res.data) ? res.data : [];
+      // Apply client-side filters
+      let filtered = data;
+      if (logType.value) {
+        filtered = filtered.filter(l => l.type === logType.value);
+      }
+      if (logLevel.value) {
+        filtered = filtered.filter(l => {
+          const log = (l.log || '').toLowerCase();
+          if (logLevel.value === 'error') return log.includes('error') || l.type === 'error';
+          if (logLevel.value === 'warning') return log.includes('warning') || l.type === 'warning';
+          if (logLevel.value === 'info') return log.includes('info') || l.type === 'operation';
+          if (logLevel.value === 'debug') return log.includes('debug');
+          return true;
+        });
+      }
+      if (dateRange.value && dateRange.value.length === 2) {
+        filtered = filtered.filter(l => {
+          if (!l.add_time) return false;
+          const d = l.add_time.split(' ')[0];
+          return d >= dateRange.value[0] && d <= dateRange.value[1];
+        });
+      }
+      logList.value = filtered;
+      total.value = res.total || data.length || 0;
     }
   } catch (error) {
     console.error('获取日志列表失败:', error);
@@ -225,14 +248,15 @@ const fetchLogs = async () => {
 
 const handleSearch = () => {
   currentPage.value = 1;
+  fetchLogs();
 };
 
 const handleFilter = () => {
-  currentPage.value = 1;
+  fetchLogs();
 };
 
 const handleDateChange = () => {
-  currentPage.value = 1;
+  fetchLogs();
 };
 
 const handleSortChange = ({ prop, order }) => {
@@ -311,14 +335,13 @@ const copyLog = () => {
   });
 };
 
-const deleteLog = async (log) => {
-  try {
-    await ElMessageBox.confirm('确定要删除这条日志吗？', '删除确认', { type: 'warning' });
-    // 后端暂无单条日志删除API，提示用户使用清空功能
-    ElMessage.warning('暂不支持删除单条日志，请使用"清空日志"功能');
-  } catch (error) {
-    if (error !== 'cancel') ElMessage.error('删除失败');
-  }
+const copySingleLog = (log) => {
+  const text = `[${log.add_time || ''}] [${getTypeName(log.type)}] ${log.log || ''}`;
+  navigator.clipboard.writeText(text).then(() => {
+    ElMessage.success('已复制到剪贴板');
+  }).catch(() => {
+    ElMessage.error('复制失败');
+  });
 };
 
 const clearLogs = async () => {

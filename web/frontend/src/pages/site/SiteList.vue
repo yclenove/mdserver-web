@@ -20,15 +20,19 @@
           </el-select>
         </el-col>
         <el-col :xs="24" :sm="8" :md="4">
-          <el-select v-model="typeFilter" placeholder="类型筛选" clearable @change="handleFilter">
+          <el-select v-model="typeFilter" placeholder="分类筛选" clearable @change="handleFilter">
             <el-option label="全部" value="" />
-            <el-option label="PHP" value="0" />
-            <el-option label="Node.js" value="1" />
-            <el-option label="Java" value="2" />
+            <el-option
+              v-for="t in siteTypes"
+              :key="t.id"
+              :label="t.name"
+              :value="String(t.id)"
+            />
           </el-select>
         </el-col>
         <el-col :xs="24" :sm="24" :md="10" class="action-buttons">
           <el-button type="primary" icon="Plus" @click="showAddSite">添加站点</el-button>
+          <el-button icon="Folder" @click="showSiteTypesDialog">管理分类</el-button>
           <el-button icon="Refresh" @click="fetchSites">刷新</el-button>
         </el-col>
       </el-row>
@@ -586,6 +590,35 @@
         </el-tab-pane>
       </el-tabs>
     </el-dialog>
+
+    <!-- 站点分类管理对话框 -->
+    <el-dialog v-model="siteTypesDialogVisible" title="站点分类管理" width="500px">
+      <div class="site-types-header">
+        <el-input v-model="newTypeName" placeholder="输入分类名称" style="width: 260px" @keyup.enter="handleAddType" />
+        <el-button type="primary" @click="handleAddType" :loading="siteTypesLoading">添加分类</el-button>
+      </div>
+      <el-table :data="siteTypes" stripe style="margin-top: 16px" v-loading="siteTypesLoading">
+        <el-table-column prop="id" label="ID" width="60" />
+        <el-table-column prop="name" label="分类名称" min-width="150">
+          <template #default="{ row }">
+            <el-input
+              v-if="row._editing"
+              v-model="row._editName"
+              size="small"
+              @keyup.enter="saveTypeName(row)"
+              @blur="saveTypeName(row)"
+            />
+            <span v-else>{{ row.name }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="120">
+          <template #default="{ row }">
+            <el-button type="primary" link size="small" @click="startEditType(row)">编辑</el-button>
+            <el-button type="danger" link size="small" @click="handleDeleteType(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
   </div>
 </template>
 
@@ -634,7 +667,12 @@ import {
   getRedirect,
   setRedirect,
   setRedirectStatus as apiSetRedirectStatus,
-  delRedirect
+  delRedirect,
+  getSiteTypes,
+  addSiteType,
+  removeSiteType,
+  modifySiteTypeName,
+  setSiteType as apiSetSiteType
 } from '@/api/index';
 
 const siteList = ref([]);
@@ -642,6 +680,8 @@ const loading = ref(false);
 const searchQuery = ref('');
 const statusFilter = ref('');
 const typeFilter = ref('');
+const siteTypes = ref([]);
+const siteTypesLoading = ref(false);
 const viewMode = ref('table');
 const currentPage = ref(1);
 const pageSize = ref(10);
@@ -789,10 +829,12 @@ const fetchSites = async () => {
 
 const handleSearch = () => {
   currentPage.value = 1;
+  fetchSites();
 };
 
 const handleFilter = () => {
   currentPage.value = 1;
+  fetchSites();
 };
 
 const handleSortChange = ({ prop, order }) => {
@@ -1603,7 +1645,87 @@ const batchDelete = async () => {
   }
 };
 
-onMounted(() => fetchSites());
+// ==================== 站点分类管理 ====================
+
+const siteTypesDialogVisible = ref(false);
+const newTypeName = ref('');
+
+const showSiteTypesDialog = () => {
+  newTypeName.value = '';
+  siteTypesDialogVisible.value = true;
+  fetchSiteTypes();
+};
+
+const handleAddType = async () => {
+  const name = newTypeName.value.trim();
+  if (!name) {
+    ElMessage.warning('请输入分类名称');
+    return;
+  }
+  siteTypesLoading.value = true;
+  try {
+    const res = await addSiteType(name);
+    if (res && res.status === false) {
+      ElMessage.error(res.msg || '添加失败');
+      return;
+    }
+    ElMessage.success('分类添加成功');
+    newTypeName.value = '';
+    fetchSiteTypes();
+  } catch {
+    ElMessage.error('添加分类失败');
+  } finally {
+    siteTypesLoading.value = false;
+  }
+};
+
+const startEditType = (row) => {
+  row._editing = true;
+  row._editName = row.name;
+};
+
+const saveTypeName = async (row) => {
+  const name = (row._editName || '').trim();
+  if (!name || name === row.name) {
+    row._editing = false;
+    return;
+  }
+  try {
+    await modifySiteTypeName(row.id, name);
+    row.name = name;
+    row._editing = false;
+    ElMessage.success('分类名称已更新');
+  } catch {
+    ElMessage.error('修改失败');
+  }
+};
+
+const handleDeleteType = async (row) => {
+  try {
+    await ElMessageBox.confirm(`确定要删除分类 "${row.name}" 吗？该分类下的站点将变为默认分类。`, '删除分类', { type: 'warning' });
+    await removeSiteType(row.id);
+    ElMessage.success('分类已删除');
+    fetchSiteTypes();
+  } catch {
+    // cancelled
+  }
+};
+
+const fetchSiteTypes = async () => {
+  try {
+    const res = await getSiteTypes();
+    if (res && res.data) {
+      siteTypes.value = Array.isArray(res.data) ? res.data : [];
+    }
+  } catch {
+    siteTypes.value = [];
+  }
+};
+
+onMounted(() => {
+  fetchSites();
+  fetchSiteTypes();
+});
 </script>
 
 <style lang="scss" scoped>
@@ -1751,6 +1873,12 @@ onMounted(() => fetchSites());
       margin-bottom: 12px;
       font-weight: 600;
     }
+  }
+
+  .site-types-header {
+    display: flex;
+    gap: 12px;
+    align-items: center;
   }
 }
 </style>
