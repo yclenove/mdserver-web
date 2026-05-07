@@ -336,6 +336,29 @@ export function setIpv6Status() {
   return request({ url: '/setting/set_ipv6_status', method: 'post' });
 }
 
+// 设置面板用户名
+export function setName(name1, name2) {
+  const data = new URLSearchParams();
+  data.append('name1', name1);
+  data.append('name2', name2);
+  return request({ url: '/setting/set_name', method: 'post', data });
+}
+
+// 设置面板密码
+export function setPassword(password1, password2) {
+  const data = new URLSearchParams();
+  data.append('password1', password1);
+  data.append('password2', password2);
+  return request({ url: '/setting/set_password', method: 'post', data });
+}
+
+// 设置面板端口
+export function setPort(port) {
+  const data = new URLSearchParams();
+  data.append('port', port);
+  return request({ url: '/setting/set_port', method: 'post', data });
+}
+
 // ==================== 软件/插件管理 ====================
 
 // 获取插件列表

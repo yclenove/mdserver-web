@@ -455,7 +455,14 @@ const clearSelection = () => {
 const batchStart = async () => {
   try {
     await ElMessageBox.confirm(`确定要启动选中的 ${selectedSites.value.length} 个站点吗？`, '批量启动');
-    ElMessage.success('批量启动成功');
+    let successCount = 0;
+    for (const site of selectedSites.value) {
+      try {
+        await startSite(site.id);
+        successCount++;
+      } catch (e) { /* skip failed */ }
+    }
+    ElMessage.success(`成功启动 ${successCount} 个站点`);
     clearSelection();
     fetchSites();
   } catch (error) {
@@ -466,7 +473,14 @@ const batchStart = async () => {
 const batchStop = async () => {
   try {
     await ElMessageBox.confirm(`确定要停止选中的 ${selectedSites.value.length} 个站点吗？`, '批量停止');
-    ElMessage.success('批量停止成功');
+    let successCount = 0;
+    for (const site of selectedSites.value) {
+      try {
+        await stopSite(site.id);
+        successCount++;
+      } catch (e) { /* skip failed */ }
+    }
+    ElMessage.success(`成功停止 ${successCount} 个站点`);
     clearSelection();
     fetchSites();
   } catch (error) {
@@ -481,7 +495,14 @@ const batchDelete = async () => {
       '批量删除',
       { type: 'warning' }
     );
-    ElMessage.success('批量删除成功');
+    let successCount = 0;
+    for (const site of selectedSites.value) {
+      try {
+        await apiDeleteSite(site.id);
+        successCount++;
+      } catch (e) { /* skip failed */ }
+    }
+    ElMessage.success(`成功删除 ${successCount} 个站点`);
     clearSelection();
     fetchSites();
   } catch (error) {

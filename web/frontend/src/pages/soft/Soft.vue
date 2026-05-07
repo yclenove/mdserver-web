@@ -259,6 +259,7 @@ const manageSoft = (soft) => {
 };
 
 const installSoft = (soft) => {
+  currentSoft.value = soft;
   const raw = soft._raw || {};
   installForm.value = {
     name: soft.name,

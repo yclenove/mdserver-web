@@ -201,7 +201,10 @@ import {
   setStatusCode,
   toggleDebug,
   togglePanel,
-  setIpv6Status
+  setIpv6Status,
+  setName,
+  setPassword,
+  setPort
 } from '@/api/index';
 
 const activeTab = ref('basic');
@@ -289,6 +292,11 @@ const saveWebname = async () => {
 const savePort = async () => {
   try {
     await ElMessageBox.confirm('修改端口后需要重启面板，确定继续吗？', '修改端口', { type: 'warning' });
+    const res = await setPort(basicForm.port);
+    if (res && res.status === false) {
+      ElMessage.error(res.msg || '端口保存失败');
+      return;
+    }
     ElMessage.success('端口保存成功，面板将重启');
   } catch (error) {
     if (error !== 'cancel') console.error('保存端口失败:', error);
@@ -372,7 +380,18 @@ const saveUsername = async () => {
     ElMessage.error('用户名长度不能少于3位');
     return;
   }
-  ElMessage.success('用户名修改成功');
+  try {
+    const res = await setName(userForm.newUsername, userForm.confirmUsername);
+    if (res && res.status === false) {
+      ElMessage.error(res.msg || '用户名修改失败');
+      return;
+    }
+    ElMessage.success('用户名修改成功');
+    userForm.newUsername = '';
+    userForm.confirmUsername = '';
+  } catch (error) {
+    ElMessage.error('用户名修改失败');
+  }
 };
 
 const savePassword = async () => {
@@ -384,7 +403,18 @@ const savePassword = async () => {
     ElMessage.error('密码长度不能少于5位');
     return;
   }
-  ElMessage.success('密码修改成功');
+  try {
+    const res = await setPassword(userForm.newPassword, userForm.confirmPassword);
+    if (res && res.status === false) {
+      ElMessage.error(res.msg || '密码修改失败');
+      return;
+    }
+    ElMessage.success('密码修改成功');
+    userForm.newPassword = '';
+    userForm.confirmPassword = '';
+  } catch (error) {
+    ElMessage.error('密码修改失败');
+  }
 };
 
 const restartPanel = async () => {

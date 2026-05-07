@@ -2,9 +2,11 @@ import request from '@/utils/request';
 
 // 登录
 export function login(username, password, code) {
-  const data = { username, password };
+  const data = new URLSearchParams();
+  data.append('username', username);
+  data.append('password', password);
   if (code) {
-    data.code = code;
+    data.append('code', code);
   }
   return request({ url: '/do_login', method: 'post', data });
 }
@@ -25,10 +27,9 @@ export function getVerifyCode() {
 }
 
 // 修改密码
-export function changePassword(oldPassword, newPassword) {
-  return request({
-    url: '/setting/set_password',
-    method: 'post',
-    data: { password: oldPassword, new_password: newPassword },
-  });
+export function changePassword(password1, password2) {
+  const data = new URLSearchParams();
+  data.append('password1', password1);
+  data.append('password2', password2);
+  return request({ url: '/setting/set_password', method: 'post', data });
 }
