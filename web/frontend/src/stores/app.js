@@ -94,9 +94,9 @@ export const useAppStore = defineStore('app', () => {
           model: cpuModel,
         },
         memory: {
-          total: mem.memTotal || basic.memTotal || 0,
-          used: mem.memRealUsed || basic.memRealUsed || 0,
-          free: mem.memFree || basic.memFree || 0,
+          total: (mem.memTotal || basic.memTotal || 0) * 1024 * 1024, // MB -> bytes
+          used: (mem.memRealUsed || basic.memRealUsed || 0) * 1024 * 1024,
+          free: (mem.memFree || basic.memFree || 0) * 1024 * 1024,
           usage: (mem.memTotal || basic.memTotal)
             ? Math.round(((mem.memRealUsed || basic.memRealUsed || 0) / (mem.memTotal || basic.memTotal)) * 100)
             : 0,
@@ -124,8 +124,8 @@ export const useAppStore = defineStore('app', () => {
           sleeping: 0,
         },
         swap: {
-          total: mem.memSwapTotal || 0,
-          used: mem.memSwapUsed || 0,
+          total: (mem.memSwapTotal || 0) * 1024 * 1024, // MB -> bytes
+          used: (mem.memSwapUsed || 0) * 1024 * 1024,
           usage: mem.memSwapTotal
             ? Math.round(((mem.memSwapUsed || 0) / mem.memSwapTotal) * 100)
             : 0,

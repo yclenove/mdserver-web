@@ -31,10 +31,14 @@ service.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('mw_token');
     if (token) {
-      config.data = config.data || {};
-      // 将 token 作为请求参数传递（兼容原有后端）
-      if (typeof config.data === 'object' && !(config.data instanceof FormData)) {
+      if (config.data instanceof URLSearchParams) {
+        config.data.append('token', token);
+      } else if (config.data && typeof config.data === 'object' && !(config.data instanceof FormData)) {
         config.data.token = token;
+      } else if (!config.data) {
+        const params = new URLSearchParams();
+        params.append('token', token);
+        config.data = params;
       }
     }
     return config;
