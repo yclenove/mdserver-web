@@ -1,5 +1,47 @@
 <template>
   <div class="dashboard-page">
+    <!-- 欢迎横幅 -->
+    <div class="welcome-banner">
+      <div class="welcome-content">
+        <div class="welcome-left">
+          <h2 class="welcome-greeting">{{ greeting }}，管理员</h2>
+          <p class="welcome-date">{{ currentDate }} | 运行时间: {{ formatUptime(systemInfo.uptime) }}</p>
+        </div>
+        <div class="welcome-right">
+          <div class="health-score" :class="healthClass">
+            <svg viewBox="0 0 36 36" class="health-ring">
+              <path class="health-ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+              <path class="health-ring-fg" :stroke-dasharray="`${healthScore}, 100`" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+            </svg>
+            <div class="health-text">
+              <span class="health-number">{{ healthScore }}</span>
+              <span class="health-label">健康度</span>
+            </div>
+          </div>
+          <div class="refresh-control">
+            <el-switch v-model="autoRefresh" size="small" active-text="自动刷新" inactive-text="" />
+            <span v-if="autoRefresh" class="refresh-countdown">{{ refreshCountdown }}s</span>
+            <el-button size="small" :icon="Refresh" circle @click="manualRefresh" title="手动刷新" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 资源告警 -->
+    <transition-group name="alert-slide" tag="div" class="alerts-container">
+      <el-alert
+        v-for="alert in activeAlerts"
+        :key="alert.key"
+        :title="alert.title"
+        :description="alert.description"
+        :type="alert.type"
+        :closable="true"
+        show-icon
+        class="resource-alert"
+        @close="dismissAlert(alert.key)"
+      />
+    </transition-group>
+
     <!-- 信息卡片 -->
     <el-row :gutter="16" class="info-cards">
       <el-col :xs="24" :sm="12" :lg="6">
@@ -242,38 +284,54 @@
             <h3 class="page-title">快捷操作</h3>
           </div>
           <div class="quick-actions-grid">
-            <el-button class="quick-action-btn" @click="quickAction('restart_panel')">
-              <el-icon><RefreshRight /></el-icon>
-              <span>重启面板</span>
-            </el-button>
-            <el-button class="quick-action-btn" @click="quickAction('clear_logs')">
-              <el-icon><Delete /></el-icon>
-              <span>清空日志</span>
-            </el-button>
-            <el-button class="quick-action-btn" @click="quickAction('check_update')">
-              <el-icon><Upload /></el-icon>
-              <span>检查更新</span>
-            </el-button>
-            <el-button class="quick-action-btn" @click="$router.push('/files')">
-              <el-icon><FolderOpened /></el-icon>
-              <span>文件管理</span>
-            </el-button>
-            <el-button class="quick-action-btn" @click="$router.push('/site')">
-              <el-icon><ChromeFilled /></el-icon>
-              <span>网站管理</span>
-            </el-button>
-            <el-button class="quick-action-btn" @click="$router.push('/monitor')">
-              <el-icon><Monitor /></el-icon>
-              <span>系统监控</span>
-            </el-button>
-            <el-button class="quick-action-btn" @click="$router.push('/firewall')">
-              <el-icon><Shield /></el-icon>
-              <span>安全设置</span>
-            </el-button>
-            <el-button class="quick-action-btn" @click="$router.push('/setting')">
-              <el-icon><Setting /></el-icon>
-              <span>面板设置</span>
-            </el-button>
+            <el-tooltip content="重启面板服务，不影响网站运行" placement="top">
+              <el-button class="quick-action-btn" @click="quickAction('restart_panel')">
+                <el-icon><RefreshRight /></el-icon>
+                <span>重启面板</span>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="清空面板操作日志" placement="top">
+              <el-button class="quick-action-btn" @click="quickAction('clear_logs')">
+                <el-icon><Delete /></el-icon>
+                <span>清空日志</span>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="检查面板是否有新版本" placement="top">
+              <el-button class="quick-action-btn" @click="quickAction('check_update')">
+                <el-icon><Upload /></el-icon>
+                <span>检查更新</span>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="管理服务器文件 (快捷键: F)" placement="top">
+              <el-button class="quick-action-btn" @click="$router.push('/files')">
+                <el-icon><FolderOpened /></el-icon>
+                <span>文件管理</span>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="管理网站站点" placement="top">
+              <el-button class="quick-action-btn" @click="$router.push('/site')">
+                <el-icon><ChromeFilled /></el-icon>
+                <span>网站管理</span>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="查看系统监控数据 (快捷键: M)" placement="top">
+              <el-button class="quick-action-btn" @click="$router.push('/monitor')">
+                <el-icon><Monitor /></el-icon>
+                <span>系统监控</span>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="配置防火墙规则" placement="top">
+              <el-button class="quick-action-btn" @click="$router.push('/firewall')">
+                <el-icon><Shield /></el-icon>
+                <span>防火墙</span>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="面板全局设置 (快捷键: S)" placement="top">
+              <el-button class="quick-action-btn" @click="$router.push('/setting')">
+                <el-icon><Setting /></el-icon>
+                <span>面板设置</span>
+              </el-button>
+            </el-tooltip>
           </div>
         </div>
       </el-col>
@@ -319,10 +377,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { VideoPlay, VideoPause, SwitchButton } from '@element-plus/icons-vue';
+import { VideoPlay, VideoPause, SwitchButton, Refresh } from '@element-plus/icons-vue';
 import { useAppStore } from '@/stores/app';
 import * as echarts from 'echarts';
 import { getIndexPluginList, restartPanelApi, clearLogs as apiClearLogs, runPlugin } from '@/api/index';
@@ -333,6 +391,83 @@ const systemInfo = ref(appStore.systemInfo);
 
 // 服务列表
 const serviceList = ref([]);
+
+// 欢迎横幅
+const autoRefresh = ref(true);
+const refreshCountdown = ref(30);
+const dismissedAlerts = ref(new Set());
+
+const greeting = computed(() => {
+  const h = new Date().getHours();
+  if (h < 6) return '夜深了';
+  if (h < 9) return '早上好';
+  if (h < 12) return '上午好';
+  if (h < 14) return '中午好';
+  if (h < 18) return '下午好';
+  if (h < 22) return '晚上好';
+  return '夜深了';
+});
+
+const currentDate = computed(() => {
+  const now = new Date();
+  const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+  return `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 ${weekdays[now.getDay()]}`;
+});
+
+// 系统健康度评分 (0-100)
+const healthScore = computed(() => {
+  const cpu = systemInfo.value.cpu.usage || 0;
+  const mem = systemInfo.value.memory.usage || 0;
+  const disk = systemInfo.value.disk.usage || 0;
+  // 权重: CPU 40%, Memory 35%, Disk 25%
+  const cpuScore = Math.max(0, 100 - cpu * 1.2);
+  const memScore = Math.max(0, 100 - mem * 1.1);
+  const diskScore = Math.max(0, 100 - disk * 1.0);
+  return Math.round(cpuScore * 0.4 + memScore * 0.35 + diskScore * 0.25);
+});
+
+const healthClass = computed(() => {
+  if (healthScore.value >= 80) return 'health-good';
+  if (healthScore.value >= 60) return 'health-warning';
+  return 'health-danger';
+});
+
+// 资源告警
+const activeAlerts = computed(() => {
+  const alerts = [];
+  const cpu = systemInfo.value.cpu.usage || 0;
+  const mem = systemInfo.value.memory.usage || 0;
+  const disk = systemInfo.value.disk.usage || 0;
+
+  if (cpu > 90 && !dismissedAlerts.value.has('cpu')) {
+    alerts.push({ key: 'cpu', title: 'CPU 使用率过高', description: `当前 CPU 使用率 ${cpu}%，建议检查高负载进程`, type: 'error' });
+  } else if (cpu > 80 && !dismissedAlerts.value.has('cpu')) {
+    alerts.push({ key: 'cpu', title: 'CPU 使用率偏高', description: `当前 CPU 使用率 ${cpu}%，请关注系统负载`, type: 'warning' });
+  }
+
+  if (mem > 90 && !dismissedAlerts.value.has('mem')) {
+    alerts.push({ key: 'mem', title: '内存使用率过高', description: `当前内存使用率 ${mem}%，可能存在内存泄漏`, type: 'error' });
+  } else if (mem > 80 && !dismissedAlerts.value.has('mem')) {
+    alerts.push({ key: 'mem', title: '内存使用率偏高', description: `当前内存使用率 ${mem}%，建议清理缓存或增加内存`, type: 'warning' });
+  }
+
+  if (disk > 95 && !dismissedAlerts.value.has('disk')) {
+    alerts.push({ key: 'disk', title: '磁盘空间严重不足', description: `当前磁盘使用率 ${disk}%，请立即清理空间`, type: 'error' });
+  } else if (disk > 85 && !dismissedAlerts.value.has('disk')) {
+    alerts.push({ key: 'disk', title: '磁盘空间不足', description: `当前磁盘使用率 ${disk}%，建议清理日志和临时文件`, type: 'warning' });
+  }
+
+  return alerts;
+});
+
+function dismissAlert(key) {
+  dismissedAlerts.value.add(key);
+}
+
+function manualRefresh() {
+  refreshData();
+  refreshCountdown.value = 30;
+}
 
 const serviceIcons = {
   'openresty': 'Monitor',
@@ -413,6 +548,7 @@ const chartTimeRange = ref('1h');
 
 let trendChart = null;
 let refreshTimer = null;
+let countdownTimer = null;
 
 // 历史数据用于图表
 const MAX_HISTORY = 60;
@@ -583,23 +719,60 @@ async function refreshData() {
   }
 }
 
+// 键盘快捷键
+function handleKeydown(e) {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'r' || e.key === 'R') {
+    e.preventDefault();
+    manualRefresh();
+  }
+}
+
+// 自动刷新控制
+watch(autoRefresh, (val) => {
+  if (val) {
+    refreshCountdown.value = 30;
+    startAutoRefresh();
+  } else {
+    stopAutoRefresh();
+  }
+});
+
+function startAutoRefresh() {
+  stopAutoRefresh();
+  refreshTimer = setInterval(() => {
+    refreshData();
+    refreshCountdown.value = 30;
+  }, 30000);
+  countdownTimer = setInterval(() => {
+    if (refreshCountdown.value > 0) refreshCountdown.value--;
+  }, 1000);
+}
+
+function stopAutoRefresh() {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+}
+
 onMounted(async () => {
   await refreshData();
   refreshServices();
   await nextTick();
   initTrendChart();
 
-  // 每 30 秒刷新数据
-  refreshTimer = setInterval(refreshData, 30000);
+  // 启动自动刷新
+  startAutoRefresh();
 
   // 监听窗口大小变化
   window.addEventListener('resize', handleResize);
+  window.addEventListener('keydown', handleKeydown);
 });
 
 onBeforeUnmount(() => {
-  if (refreshTimer) clearInterval(refreshTimer);
+  stopAutoRefresh();
   if (trendChart) trendChart.dispose();
   window.removeEventListener('resize', handleResize);
+  window.removeEventListener('keydown', handleKeydown);
 });
 
 function handleResize() {
@@ -609,6 +782,164 @@ function handleResize() {
 
 <style lang="scss" scoped>
 .dashboard-page {
+  // 欢迎横幅
+  .welcome-banner {
+    background: linear-gradient(135deg, #409eff 0%, #6366f1 50%, #764ba2 100%);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 16px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -20%;
+      width: 300px;
+      height: 300px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 50%;
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -60%;
+      right: 10%;
+      width: 200px;
+      height: 200px;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 50%;
+    }
+
+    .welcome-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+
+      .welcome-left {
+        .welcome-greeting {
+          margin: 0 0 6px;
+          font-size: 22px;
+          font-weight: 700;
+        }
+
+        .welcome-date {
+          margin: 0;
+          font-size: 13px;
+          opacity: 0.85;
+        }
+      }
+
+      .welcome-right {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+
+        .health-score {
+          position: relative;
+          width: 72px;
+          height: 72px;
+
+          .health-ring {
+            width: 72px;
+            height: 72px;
+            transform: rotate(-90deg);
+
+            .health-ring-bg {
+              fill: none;
+              stroke: rgba(255, 255, 255, 0.2);
+              stroke-width: 3;
+            }
+
+            .health-ring-fg {
+              fill: none;
+              stroke: #67c23a;
+              stroke-width: 3;
+              stroke-linecap: round;
+              transition: stroke-dasharray 0.6s ease;
+            }
+          }
+
+          .health-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+
+            .health-number {
+              display: block;
+              font-size: 18px;
+              font-weight: 700;
+              line-height: 1;
+            }
+
+            .health-label {
+              font-size: 9px;
+              opacity: 0.8;
+            }
+          }
+
+          &.health-good .health-ring-fg { stroke: #67c23a; }
+          &.health-warning .health-ring-fg { stroke: #e6a23c; }
+          &.health-danger .health-ring-fg { stroke: #f56c6c; }
+        }
+
+        .refresh-control {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+
+          .refresh-countdown {
+            font-size: 12px;
+            opacity: 0.8;
+            min-width: 28px;
+          }
+
+          .el-button {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+            color: #fff;
+
+            &:hover {
+              background: rgba(255, 255, 255, 0.25);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 资源告警
+  .alerts-container {
+    margin-bottom: 12px;
+  }
+
+  .resource-alert {
+    margin-bottom: 8px;
+    border-radius: 8px;
+  }
+
+  .alert-slide-enter-active,
+  .alert-slide-leave-active {
+    transition: all 0.3s ease;
+  }
+
+  .alert-slide-enter-from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  .alert-slide-leave-to {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+
   .info-cards {
     margin-bottom: 16px;
   }
@@ -932,6 +1263,41 @@ function handleResize() {
           background: #dcdfe6;
         }
       }
+    }
+  }
+
+  @media (max-width: 768px) {
+    .welcome-banner {
+      padding: 16px 20px;
+
+      .welcome-content {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+
+        .welcome-left {
+          .welcome-greeting {
+            font-size: 18px;
+          }
+        }
+
+        .welcome-right {
+          width: 100%;
+          justify-content: space-between;
+        }
+      }
+    }
+
+    .quick-actions-grid {
+      justify-content: center;
+
+      .quick-action-btn {
+        padding: 12px 18px;
+      }
+    }
+
+    .service-grid {
+      grid-template-columns: 1fr;
     }
   }
 }
