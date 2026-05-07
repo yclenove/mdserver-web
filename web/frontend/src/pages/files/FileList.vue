@@ -259,7 +259,7 @@ import {
   FolderOpened, Folder, Document, Picture, VideoPlay,
   Headset, Files, List, Grid, CopyDocument, Rank, Lock, Download,
 } from '@element-plus/icons-vue';
-import { getDir, createFile, createDir, deleteFile as deleteFileApi, rename, getFileContent } from '@/api/files';
+import { getDir, createFile, createDir, deleteFile as deleteFileApi, rename, copyFile, getFileContent } from '@/api/files';
 
 const router = useRouter();
 
@@ -538,9 +538,8 @@ async function confirmBatchCopy() {
     for (const row of selectedFiles.value) {
       const srcPath = currentPath.value === '/' ? '/' + row.name : currentPath.value + '/' + row.name;
       const dstPath = batchTargetPath.value + '/' + row.name;
-      // 调用复制 API（如存在）
       try {
-        await createFile(dstPath); // 占位，实际应调用 copy API
+        await copyFile(srcPath, dstPath);
         successCount++;
       } catch {
         // 继续处理其他文件
