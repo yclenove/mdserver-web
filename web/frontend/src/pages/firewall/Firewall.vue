@@ -209,7 +209,10 @@ import {
   delAcceptPort,
   getSshInfo,
   setSshPort,
-  setPingStatus
+  setPingStatus,
+  setSshRootStatus,
+  setSshPassStatus,
+  setSshPubkeyStatus
 } from '@/api/index';
 
 const activeTab = ref('ports');
@@ -329,9 +332,13 @@ const blockIP = (log) => {
 const saveSSHConfig = async () => {
   try {
     await setSshPort(sshConfig.value.port);
+    await setSshRootStatus(sshConfig.value.rootLogin ? '1' : '0');
+    await setSshPassStatus(sshConfig.value.passwordAuth ? '1' : '0');
+    await setSshPubkeyStatus(sshConfig.value.pubkeyAuth ? '1' : '0');
     ElMessage.success('SSH配置已保存');
   } catch (error) {
     console.error('保存SSH配置失败:', error);
+    ElMessage.error('保存SSH配置失败');
   }
 };
 
@@ -361,11 +368,12 @@ const fetchFirewallData = async () => {
 const fetchSshInfo = async () => {
   try {
     const res = await getSshInfo();
-    if (res) {
-      sshConfig.value.port = res.port || '22';
-      sshConfig.value.rootLogin = res.is_root === 'yes' || res.is_root === true;
-      sshConfig.value.passwordAuth = res.pass_work === 'yes' || res.pass_work === true;
-      sshConfig.value.pubkeyAuth = res.pubkey_work === 'yes' || res.pubkey_work === true;
+    if (res && res.data) {
+      const info = res.data;
+      sshConfig.value.port = info.port || '22';
+      sshConfig.value.rootLogin = info.is_root === 'yes' || info.is_root === true;
+      sshConfig.value.passwordAuth = info.pass_work === 'yes' || info.pass_work === true;
+      sshConfig.value.pubkeyAuth = info.pubkey_work === 'yes' || info.pubkey_work === true;
     }
   } catch (error) {
     console.error('获取SSH信息失败:', error);

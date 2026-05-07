@@ -205,7 +205,10 @@ import {
   getCrontabList,
   deleteCrontab as apiDeleteCrontab,
   setCrontabStatus,
-  getCrontabLogs
+  getCrontabLogs,
+  addCrontab,
+  modifyCrontab,
+  startCrontabTask
 } from '@/api/index';
 
 const crontabList = ref([]);
@@ -363,6 +366,43 @@ const editCrontab = (row) => {
 const submitCrontab = async () => {
   submitting.value = true;
   try {
+    const form = crontabForm.value;
+    const stype = form.type === 'visit' ? 'toUrl' : 'toShell';
+    const params = {
+      name: form.name,
+      type: form.type,
+      where1: form.period,
+      hour: form.hour || '0',
+      minute: form.minute || '0',
+      stype: stype,
+      sbody: form.cmd,
+      url_address: form.type === 'visit' ? form.cmd : '',
+      backup_to: form.backup_to || 'local',
+      save: ''
+    };
+
+    // 处理自定义 cron 表达式
+    if (form.period === 'custom' && form.cron_expression) {
+      const parts = form.cron_expression.trim().split(/\s+/);
+      if (parts.length >= 5) {
+        params.minute = parts[0];
+        params.hour = parts[1];
+        params.where1 = 'day';
+      }
+    }
+
+    let res;
+    if (isEdit.value && form.id) {
+      res = await modifyCrontab(form.id, params);
+    } else {
+      res = await addCrontab(params);
+    }
+
+    if (res && res.status === false) {
+      ElMessage.error(res.msg || '操作失败');
+      return;
+    }
+
     ElMessage.success(isEdit.value ? '任务更新成功' : '任务添加成功');
     dialogVisible.value = false;
     fetchCrontabs();
@@ -387,6 +427,11 @@ const toggleStatus = async (row) => {
 const runTask = async (row) => {
   try {
     await ElMessageBox.confirm(`确定要立即执行任务 "${row.name}" 吗？`, '执行确认');
+    const res = await startCrontabTask(row.id);
+    if (res && res.status === false) {
+      ElMessage.error(res.msg || '执行失败');
+      return;
+    }
     ElMessage.success('任务已开始执行');
   } catch (error) {
     if (error !== 'cancel') ElMessage.error('执行失败');

@@ -135,6 +135,34 @@ export function setPingStatus(status) {
   return request({ url: '/firewall/set_ping', method: 'post', data });
 }
 
+// 设置SSH Root登录状态
+export function setSshRootStatus(status) {
+  const data = new URLSearchParams();
+  data.append('status', status);
+  return request({ url: '/firewall/set_ssh_root_status', method: 'post', data });
+}
+
+// 设置SSH密码登录状态
+export function setSshPassStatus(status) {
+  const data = new URLSearchParams();
+  data.append('status', status);
+  return request({ url: '/firewall/set_ssh_pass_status', method: 'post', data });
+}
+
+// 设置SSH公钥登录状态
+export function setSshPubkeyStatus(status) {
+  const data = new URLSearchParams();
+  data.append('status', status);
+  return request({ url: '/firewall/set_ssh_pubkey_status', method: 'post', data });
+}
+
+// 设置防火墙状态
+export function setFirewallStatus(status) {
+  const data = new URLSearchParams();
+  data.append('status', status);
+  return request({ url: '/firewall/set_fw', method: 'post', data });
+}
+
 // ==================== 计划任务 ====================
 
 // 计划任务列表
@@ -157,6 +185,52 @@ export function setCrontabStatus(id) {
   const data = new URLSearchParams();
   data.append('id', id);
   return request({ url: '/crontab/set_cron_status', method: 'post', data });
+}
+
+// 添加计划任务
+export function addCrontab(params) {
+  const data = new URLSearchParams();
+  data.append('name', params.name || '');
+  data.append('type', params.type || '');
+  data.append('week', params.week || '');
+  data.append('where1', params.where1 || '');
+  data.append('hour', params.hour || '');
+  data.append('minute', params.minute || '');
+  data.append('save', params.save || '');
+  data.append('backup_to', params.backup_to || '');
+  data.append('stype', params.stype || '');
+  data.append('sname', params.sname || '');
+  data.append('sbody', params.sbody || '');
+  data.append('url_address', params.url_address || '');
+  data.append('attr', params.attr || '');
+  return request({ url: '/crontab/add', method: 'post', data });
+}
+
+// 修改计划任务
+export function modifyCrontab(id, params) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  data.append('name', params.name || '');
+  data.append('type', params.type || '');
+  data.append('week', params.week || '');
+  data.append('where1', params.where1 || '');
+  data.append('hour', params.hour || '');
+  data.append('minute', params.minute || '');
+  data.append('save', params.save || '');
+  data.append('backup_to', params.backup_to || '');
+  data.append('stype', params.stype || '');
+  data.append('sname', params.sname || '');
+  data.append('sbody', params.sbody || '');
+  data.append('url_address', params.url_address || '');
+  data.append('attr', params.attr || '');
+  return request({ url: '/crontab/modify_crond', method: 'post', data });
+}
+
+// 执行计划任务
+export function startCrontabTask(id) {
+  const data = new URLSearchParams();
+  data.append('id', id);
+  return request({ url: '/crontab/start_task', method: 'post', data });
 }
 
 // 获取计划任务日志
