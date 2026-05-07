@@ -135,6 +135,23 @@
           <el-input v-model="crontabForm.cron_expression" placeholder="* * * * *" />
           <div class="cron-help">
             <span>分 时 日 月 周</span>
+            <el-popover placement="right" :width="400" trigger="click">
+              <template #reference>
+                <el-button type="primary" link size="small">表达式帮助</el-button>
+              </template>
+              <div class="cron-examples">
+                <h4>常用表达式示例</h4>
+                <el-table :data="cronExamples" size="small" stripe>
+                  <el-table-column prop="expression" label="表达式" width="120" />
+                  <el-table-column prop="description" label="说明" />
+                  <el-table-column label="操作" width="60">
+                    <template #default="{ row }">
+                      <el-button type="primary" link size="small" @click="crontabForm.cron_expression = row.expression">使用</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </div>
+            </el-popover>
           </div>
         </el-form-item>
         <el-form-item v-if="crontabForm.period !== 'custom'" label="执行时间">
@@ -223,6 +240,19 @@ const isEdit = ref(false);
 const submitting = ref(false);
 const crontabFormRef = ref(null);
 const taskLogs = ref([]);
+
+const cronExamples = [
+  { expression: '* * * * *', description: '每分钟执行' },
+  { expression: '0 * * * *', description: '每小时整点执行' },
+  { expression: '0 0 * * *', description: '每天凌晨0点执行' },
+  { expression: '0 2 * * *', description: '每天凌晨2点执行' },
+  { expression: '0 0 * * 1', description: '每周一凌晨0点执行' },
+  { expression: '0 0 1 * *', description: '每月1日凌晨0点执行' },
+  { expression: '*/5 * * * *', description: '每5分钟执行' },
+  { expression: '0 */2 * * *', description: '每2小时执行' },
+  { expression: '30 3 * * 6', description: '每周六凌晨3:30执行' },
+  { expression: '0 0 1 1 *', description: '每年1月1日执行' },
+];
 
 const crontabForm = ref({
   id: null,
@@ -506,6 +536,16 @@ onMounted(() => fetchCrontabs());
     font-size: 12px;
     color: #909399;
     margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .cron-examples {
+    h4 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
   }
 
   .el-pagination {
