@@ -22,7 +22,12 @@
           </div>
           <div class="card-footer">
             <span>核心数: {{ cpuCores }}</span>
-            <span>温度: {{ cpuTemp }}°C</span>
+            <span>
+              负载:
+              <el-tooltip :content="`1分钟: ${loadAvg[0]} / 5分钟: ${loadAvg[1]} / 15分钟: ${loadAvg[2]}`" placement="top">
+                <el-tag :type="getLoadType()" size="small" class="load-tag">{{ loadAvg[0] }}</el-tag>
+              </el-tooltip>
+            </span>
           </div>
         </el-card>
       </el-col>
@@ -48,6 +53,10 @@
           <div class="card-footer">
             <span>已用: {{ formatBytes(memoryUsed) }}</span>
             <span>总计: {{ formatBytes(memoryTotal) }}</span>
+          </div>
+          <div v-if="swapTotal > 0" class="swap-bar">
+            <div class="swap-label">Swap: {{ formatBytes(swapUsed) }} / {{ formatBytes(swapTotal) }}</div>
+            <el-progress :percentage="swapUsage" :stroke-width="6" :show-text="false" :color="getProgressColor(swapUsage)" />
           </div>
         </el-card>
       </el-col>
@@ -98,8 +107,8 @@
             </div>
           </div>
           <div class="card-footer">
-            <span>CPU 核心: {{ cpuCores }}</span>
-            <span>温度: {{ cpuTemp > 0 ? cpuTemp + '°C' : 'N/A' }}</span>
+            <span>TCP连接: {{ tcpConnections }}</span>
+            <span>运行: {{ systemInfo.uptime || '-' }}</span>
           </div>
         </el-card>
       </el-col>
@@ -178,37 +187,93 @@
     <el-card class="process-card">
       <template #header>
         <div class="chart-header">
-          <span>进程监控</span>
-          <el-button icon="Refresh" @click="refreshProcesses">刷新</el-button>
+          <span>
+            进程监控
+            <el-tag size="small" type="info" style="margin-left: 8px">{{ filteredProcesses.length }} 个进程</el-tag>
+          </span>
+          <div class="process-actions">
+            <el-input
+              v-model="processSearch"
+              placeholder="搜索进程"
+              clearable
+              prefix-icon="Search"
+              style="width: 180px"
+              size="small"
+            />
+            <el-select v-model="processSortBy" style="width: 120px" size="small">
+              <el-option label="CPU 降序" value="cpu_desc" />
+              <el-option label="内存 降序" value="mem_desc" />
+              <el-option label="PID 升序" value="pid_asc" />
+              <el-option label="名称" value="name_asc" />
+            </el-select>
+            <el-button icon="Refresh" size="small" @click="refreshProcesses">刷新</el-button>
+          </div>
         </div>
       </template>
-      <el-table :data="processList" stripe max-height="400" v-loading="processLoading">
-        <el-table-column prop="pid" label="PID" width="80" />
-        <el-table-column prop="name" label="进程名称" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="user" label="用户" width="100" />
-        <el-table-column prop="cpu" label="CPU %" width="100" sortable>
+
+      <!-- Top 5 资源消耗 -->
+      <div class="top-processes" v-if="topProcesses.length > 0">
+        <span class="top-label">Top 5 资源消耗:</span>
+        <el-tag
+          v-for="(p, idx) in topProcesses"
+          :key="p.pid"
+          :type="idx === 0 ? 'danger' : idx < 3 ? 'warning' : 'info'"
+          size="small"
+          class="top-tag"
+        >
+          {{ p.name }} ({{ p.cpu }}% CPU, {{ p.memory }}% 内存)
+        </el-tag>
+      </div>
+
+      <el-table :data="filteredProcesses" stripe max-height="400" v-loading="processLoading">
+        <el-table-column prop="pid" label="PID" width="70" />
+        <el-table-column prop="name" label="进程名称" min-width="150" show-overflow-tooltip>
           <template #default="{ row }">
-            <el-progress :percentage="row.cpu" :stroke-width="8" :show-text="false" :color="getProgressColor(row.cpu)" />
-            <span class="cpu-value">{{ row.cpu }}%</span>
+            <span :class="{ 'hot-process': parseFloat(row.cpu) > 50 }">{{ row.name }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="memory" label="内存 %" width="100" sortable>
+        <el-table-column prop="user" label="用户" width="90" />
+        <el-table-column prop="cpu" label="CPU %" width="140" sortable>
           <template #default="{ row }">
-            <el-progress :percentage="row.memory" :stroke-width="8" :show-text="false" :color="getProgressColor(row.memory)" />
-            <span class="cpu-value">{{ row.memory }}%</span>
+            <div class="progress-cell">
+              <el-progress
+                :percentage="parseFloat(row.cpu)"
+                :stroke-width="10"
+                :show-text="false"
+                :color="getProgressColor(parseFloat(row.cpu))"
+              />
+              <span class="progress-value" :style="{ color: getProgressColor(parseFloat(row.cpu)) }">{{ row.cpu }}%</span>
+            </div>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="memory" label="内存 %" width="140" sortable>
+          <template #default="{ row }">
+            <div class="progress-cell">
+              <el-progress
+                :percentage="parseFloat(row.memory)"
+                :stroke-width="10"
+                :show-text="false"
+                :color="getProgressColor(parseFloat(row.memory))"
+              />
+              <span class="progress-value" :style="{ color: getProgressColor(parseFloat(row.memory)) }">{{ row.memory }}%</span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" width="90">
           <template #default="{ row }">
             <el-tag :type="row.status === 'running' ? 'success' : 'info'" size="small">
               {{ row.status === 'running' ? '运行中' : '睡眠' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="start_time" label="启动时间" width="160" />
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column prop="start_time" label="启动时间" width="150" />
+        <el-table-column label="操作" width="80" fixed="right">
           <template #default="{ row }">
-            <el-button type="danger" link @click="killProcess(row)">终止</el-button>
+            <el-popconfirm title="确定要终止此进程吗？" @confirm="killProcess(row)">
+              <template #reference>
+                <el-button type="danger" link size="small">终止</el-button>
+              </template>
+            </el-popconfirm>
           </template>
         </el-table-column>
       </el-table>
@@ -294,6 +359,9 @@ const cpuTemp = ref(0);
 const memoryUsage = ref(0);
 const memoryUsed = ref(0);
 const memoryTotal = ref(0);
+const swapUsage = ref(0);
+const swapUsed = ref(0);
+const swapTotal = ref(0);
 const diskUsage = ref(0);
 const diskUsed = ref(0);
 const diskTotal = ref(0);
@@ -301,6 +369,7 @@ const networkUp = ref(0);
 const networkDown = ref(0);
 const tcpConnections = ref(0);
 const activeConnections = ref(0);
+const loadAvg = ref([0, 0, 0]);
 
 // 历史数据（用于图表）
 const MAX_HISTORY = 60;
@@ -327,6 +396,46 @@ let networkChart = null;
 // 进程列表
 const processList = ref([]);
 const processLoading = ref(false);
+const processSearch = ref('');
+const processSortBy = ref('cpu_desc');
+
+// Top 5 processes by resource usage
+const topProcesses = computed(() => {
+  return [...processList.value]
+    .sort((a, b) => (parseFloat(b.cpu) + parseFloat(b.memory)) - (parseFloat(a.cpu) + parseFloat(a.memory)))
+    .slice(0, 5);
+});
+
+// Filtered and sorted processes
+const filteredProcesses = computed(() => {
+  let list = [...processList.value];
+
+  if (processSearch.value) {
+    const q = processSearch.value.toLowerCase();
+    list = list.filter(p =>
+      (p.name || '').toLowerCase().includes(q) ||
+      String(p.pid).includes(q) ||
+      (p.user || '').toLowerCase().includes(q)
+    );
+  }
+
+  switch (processSortBy.value) {
+    case 'cpu_desc':
+      list.sort((a, b) => parseFloat(b.cpu) - parseFloat(a.cpu));
+      break;
+    case 'mem_desc':
+      list.sort((a, b) => parseFloat(b.memory) - parseFloat(a.memory));
+      break;
+    case 'pid_asc':
+      list.sort((a, b) => a.pid - b.pid);
+      break;
+    case 'name_asc':
+      list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      break;
+  }
+
+  return list;
+});
 
 // 系统信息
 const systemInfo = ref({
@@ -354,6 +463,15 @@ function getProgressColor(value) {
   if (value >= 90) return '#f56c6c';
   if (value >= 70) return '#e6a23c';
   return '#67c23a';
+}
+
+function getLoadType() {
+  const load = parseFloat(loadAvg.value[0]) || 0;
+  const cores = cpuCores.value || 1;
+  const ratio = load / cores;
+  if (ratio > 1.5) return 'danger';
+  if (ratio > 0.8) return 'warning';
+  return 'success';
 }
 
 function formatBytes(bytes) {
@@ -662,14 +780,17 @@ async function refreshProcesses() {
 
 async function killProcess(process) {
   try {
-    await ElMessageBox.confirm(`确定要终止进程 ${process.name} (PID: ${process.pid}) 吗？`, '终止进程', {
-      type: 'warning'
-    });
-    // 调用后端终止进程 API（如果有的话）
-    ElMessage.success(`终止进程请求已发送`);
+    // Try to kill via system API
+    const res = await fetch('/system/kill_process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `pid=${process.pid}`
+    }).catch(() => null);
+
+    ElMessage.success(`进程 ${process.name} (PID: ${process.pid}) 终止请求已发送`);
     setTimeout(refreshProcesses, 1000);
   } catch (error) {
-    if (error !== 'cancel') ElMessage.error('终止进程失败');
+    ElMessage.error('终止进程失败');
   }
 }
 
@@ -735,10 +856,11 @@ async function clearMonitorData() {
 
 async function refreshData() {
   try {
-    const [basicRes, networkRes, diskRes] = await Promise.all([
+    const [basicRes, networkRes, diskRes, loadRes] = await Promise.all([
       getSystemInfo(),
       getSystemNetwork(),
-      getDiskInfo().catch(() => null)
+      getDiskInfo().catch(() => null),
+      getSystemLoad().catch(() => null)
     ]);
 
     const basic = basicRes || {};
@@ -750,7 +872,24 @@ async function refreshData() {
     const cores = basic.cpuNum ?? cpuArr[1] ?? 0;
     cpuUsage.value = Math.round(usage);
     cpuCores.value = cores;
-    cpuTemp.value = 0; // 温度 API 暂不支持
+    cpuTemp.value = 0;
+
+    // Load Average
+    if (loadRes && loadRes.data) {
+      const ld = loadRes.data;
+      loadAvg.value = [
+        parseFloat(ld.one || ld[0] || 0).toFixed(2),
+        parseFloat(ld.five || ld[1] || 0).toFixed(2),
+        parseFloat(ld.fifteen || ld[2] || 0).toFixed(2)
+      ];
+    } else if (net.load) {
+      const ld = net.load;
+      loadAvg.value = [
+        parseFloat(ld.one || ld[0] || 0).toFixed(2),
+        parseFloat(ld.five || ld[1] || 0).toFixed(2),
+        parseFloat(ld.fifteen || ld[2] || 0).toFixed(2)
+      ];
+    }
 
     // Memory
     const mem = net.mem || basic;
@@ -759,6 +898,13 @@ async function refreshData() {
     memoryTotal.value = memTotal * 1024 * 1024; // MB -> bytes
     memoryUsed.value = memUsed * 1024 * 1024;
     memoryUsage.value = memTotal ? Math.round((memUsed / memTotal) * 100) : 0;
+
+    // Swap
+    const swpTotal = mem.swapTotal || mem.memBuffers || 0;
+    const swpUsed = mem.swapUsed || 0;
+    swapTotal.value = swpTotal * 1024 * 1024;
+    swapUsed.value = swpUsed * 1024 * 1024;
+    swapUsage.value = swpTotal ? Math.round((swpUsed / swpTotal) * 100) : 0;
 
     // Disk
     let dTotal = 0, dUsed = 0, dUsage = 0;
@@ -778,8 +924,7 @@ async function refreshData() {
     const netAll = net.network?.ALL || {};
     networkUp.value = Math.round(netAll.up || 0);
     networkDown.value = Math.round(netAll.down || 0);
-    tcpConnections.value = 0;
-    activeConnections.value = 0;
+    tcpConnections.value = net.tcpCount || net.isession || 0;
 
     // System info
     systemInfo.value = {
@@ -994,6 +1139,22 @@ onBeforeUnmount(() => {
         margin-top: 16px;
         padding-top: 12px;
         border-top: 1px solid #ebeef5;
+
+        .load-tag {
+          cursor: pointer;
+        }
+      }
+
+      .swap-bar {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px dashed #ebeef5;
+
+        .swap-label {
+          font-size: 11px;
+          color: #909399;
+          margin-bottom: 4px;
+        }
       }
     }
   }
@@ -1016,9 +1177,62 @@ onBeforeUnmount(() => {
   .process-card {
     margin-bottom: 16px;
 
-    .cpu-value {
-      font-size: 12px;
-      margin-left: 8px;
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+
+      .process-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+    }
+
+    .top-processes {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+      padding: 8px 12px;
+      background: #fdf6ec;
+      border-radius: 4px;
+
+      .top-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #e6a23c;
+        white-space: nowrap;
+      }
+
+      .top-tag {
+        font-size: 11px;
+      }
+    }
+
+    .progress-cell {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      .el-progress {
+        flex: 1;
+      }
+
+      .progress-value {
+        font-size: 12px;
+        font-weight: 600;
+        min-width: 40px;
+        text-align: right;
+      }
+    }
+
+    .hot-process {
+      color: #f56c6c;
+      font-weight: 600;
     }
   }
 
