@@ -11,7 +11,7 @@ export function login(username, password, code) {
 
 // 登出
 export function logout() {
-  return request({ url: '/api/user/logout', method: 'post' });
+  return request({ url: '/do_logout', method: 'post' });
 }
 
 // 检查登录状态
@@ -21,13 +21,13 @@ export function checkLogin() {
 
 // 获取验证码
 export function getVerifyCode() {
-  return request({ url: '/api/user/get_verify_code', method: 'get' });
+  return request({ url: '/code', method: 'get' });
 }
 
 // 修改密码
 export function changePassword(oldPassword, newPassword) {
   return request({
-    url: '/api/user/change_password',
+    url: '/setting/set_password',
     method: 'post',
     data: { password: oldPassword, new_password: newPassword },
   });

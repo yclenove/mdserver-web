@@ -28,12 +28,16 @@ blueprint = Blueprint(
 @blueprint.route("/system_total", endpoint="system_total", methods=["GET", "POST"])
 @panel_login_required
 def system_total():
+    import platform
     data = sys.getMemInfo()
     cpu = sys.getCpuInfo(interval=1)
     data["cpuNum"] = cpu[1]
     data["cpuRealUsed"] = cpu[0]
     data["time"] = sys.getBootTime()
     data["system"] = sys.getSystemVersion()
+    data["hostname"] = platform.node()
+    data["kernel"] = platform.release()
+    data["arch"] = platform.machine()
     data["version"] = "0.0.1"
     return data
 

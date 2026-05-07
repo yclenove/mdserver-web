@@ -37,7 +37,12 @@
             class="verify-input"
           />
           <div class="verify-code-img" @click="refreshCode">
-            <img v-if="verifyCodeUrl" :src="verifyCodeUrl" alt="验证码" />
+            <img
+              v-if="verifyCodeUrl"
+              :src="verifyCodeUrl"
+              alt="验证码"
+              @error="onCodeImgError"
+            />
             <span v-else class="loading-text">加载中...</span>
           </div>
         </div>
@@ -58,12 +63,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { User, Lock, Key } from '@element-plus/icons-vue';
 import { useUserStore } from '@/stores/user';
-import { getVerifyCode } from '@/api/dashboard';
 
 const router = useRouter();
 const route = useRoute();
@@ -80,21 +84,24 @@ const loginForm = reactive({
   code: '',
 });
 
-const loginRules = {
+// 动态验证规则：验证码字段仅在显示时必填
+const loginRules = computed(() => ({
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
-  code: [{ required: true, message: '请输入验证码', trigger: 'blur' }],
-};
+  code: showVerifyCode.value
+    ? [{ required: true, message: '请输入验证码', trigger: 'blur' }]
+    : [],
+}));
 
-async function refreshCode() {
-  try {
-    const res = await getVerifyCode();
-    if (res.data) {
-      verifyCodeUrl.value = res.data;
-    }
-  } catch {
-    // 验证码接口可能不存在，忽略
-  }
+function refreshCode() {
+  // 添加时间戳防止缓存
+  verifyCodeUrl.value = '/code?t=' + Date.now();
+}
+
+function onCodeImgError() {
+  // 验证码图片加载失败，隐藏验证码输入
+  showVerifyCode.value = false;
+  verifyCodeUrl.value = '';
 }
 
 async function handleLogin() {
@@ -124,17 +131,9 @@ async function handleLogin() {
 }
 
 onMounted(() => {
-  // 尝试获取验证码，如果接口存在则显示验证码输入框
-  getVerifyCode()
-    .then((res) => {
-      if (res.data) {
-        showVerifyCode.value = true;
-        verifyCodeUrl.value = res.data;
-      }
-    })
-    .catch(() => {
-      showVerifyCode.value = false;
-    });
+  // 加载验证码图片（图片加载成功表示接口可用）
+  showVerifyCode.value = true;
+  refreshCode();
 });
 </script>
 

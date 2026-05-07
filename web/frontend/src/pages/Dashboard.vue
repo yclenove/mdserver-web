@@ -70,7 +70,7 @@
           </div>
           <div class="card-info">
             <div class="card-label">网络流量</div>
-            <div class="card-value">{{ formatBytes(systemInfo.network.up) }}/s</div>
+            <div class="card-value">{{ formatBytes(systemInfo.network.down) }}/s</div>
             <div class="network-detail">
               <span class="upload">
                 <el-icon><Top /></el-icon>
@@ -99,15 +99,15 @@
             <div class="load-avg">
               <div class="load-item">
                 <span class="load-label">1分钟</span>
-                <span class="load-value">{{ systemInfo.load?.one || '-' }}</span>
+                <span class="load-value">{{ systemInfo.load?.one ?? '-' }}</span>
               </div>
               <div class="load-item">
                 <span class="load-label">5分钟</span>
-                <span class="load-value">{{ systemInfo.load?.five || '-' }}</span>
+                <span class="load-value">{{ systemInfo.load?.five ?? '-' }}</span>
               </div>
               <div class="load-item">
                 <span class="load-label">15分钟</span>
-                <span class="load-value">{{ systemInfo.load?.fifteen || '-' }}</span>
+                <span class="load-value">{{ systemInfo.load?.fifteen ?? '-' }}</span>
               </div>
             </div>
           </div>
@@ -245,11 +245,23 @@ function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + units[i];
 }
 
-function formatUptime(seconds) {
-  if (!seconds) return '-';
-  const days = Math.floor(seconds / 86400);
-  const hours = Math.floor((seconds % 86400) / 3600);
-  const mins = Math.floor((seconds % 3600) / 60);
+function formatUptime(uptime) {
+  if (!uptime) return '-';
+  // API 返回中文格式如 "已不间断运行: 0天11小时39分钟"
+  if (typeof uptime === 'string') {
+    // 提取 "已不间断运行:" 后面的部分
+    const match = uptime.match(/(\d+天\d+小时\d+分钟)/);
+    if (match) return match[1];
+    // 如果已经是纯时间格式，直接返回
+    if (uptime.includes('天') || uptime.includes('小时') || uptime.includes('分钟')) {
+      return uptime.replace('已不间断运行: ', '');
+    }
+    return uptime;
+  }
+  // 如果是秒数
+  const days = Math.floor(uptime / 86400);
+  const hours = Math.floor((uptime % 86400) / 3600);
+  const mins = Math.floor((uptime % 3600) / 60);
   const parts = [];
   if (days > 0) parts.push(`${days}天`);
   if (hours > 0) parts.push(`${hours}小时`);

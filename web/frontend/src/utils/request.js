@@ -1,9 +1,23 @@
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
 
+// 检测安全入口路径
+function getAdminPath() {
+  // 从当前 URL 路径中提取安全入口
+  const path = window.location.pathname;
+  // 匹配 /<8位安全入口>/vue/... 模式
+  const match = path.match(/^\/([a-z0-9]{8})\//);
+  if (match) {
+    return '/' + match[1];
+  }
+  return '';
+}
+
+const adminPath = getAdminPath();
+
 // 创建 Axios 实例
 const service = axios.create({
-  baseURL: '/',
+  baseURL: adminPath || '/',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/x-www-form-urlencoded',
@@ -33,8 +47,8 @@ service.interceptors.response.use(
   (response) => {
     const res = response.data;
 
-    // 后端返回的状态码处理
-    if (res.status === -1 || res.code === -1) {
+    // 后端返回错误状态处理 (status === false 或 status === -1)
+    if (res.status === false || res.status === -1 || res.code === -1) {
       ElMessage.error(res.msg || res.data || '请求失败');
       return Promise.reject(new Error(res.msg || '请求失败'));
     }
@@ -44,7 +58,7 @@ service.interceptors.response.use(
       ElMessage.error('登录已过期，请重新登录');
       localStorage.removeItem('mw_token');
       localStorage.removeItem('mw_username');
-      window.location.href = '/login';
+      window.location.href = '/vue/login';
       return Promise.reject(new Error('未授权'));
     }
 
